@@ -44,7 +44,7 @@ export function BrandMark({
             className={`text-[0.7rem] font-medium tracking-[0.08em] uppercase`}
             style={{ color: isLight ? 'rgba(255,255,255,0.7)' : '#3d6673' }}
           >
-            Manuscript System
+            Manuscript Systems
           </p>
         </div>
       ) : null}
