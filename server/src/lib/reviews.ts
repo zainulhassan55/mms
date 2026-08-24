@@ -17,11 +17,34 @@ export type InvitationWithRelations = ReviewInvitation & {
   reviewer: Pick<User, 'id' | 'name' | 'email' | 'affiliation' | 'expertise'>
   manuscript?: Pick<Manuscript, 'id' | 'number' | 'title'> & {
     journal?: Pick<Journal, 'name'>
+    files?: Array<{
+      id: string
+      kind: string
+      fileName: string
+      sizeBytes: number | null
+    }>
   }
   review?: Pick<ReviewReport, 'id' | 'recommendation' | 'commentsToEditor'> | null
 }
 
+/** File kinds reviewers may download (blind review — no author identity files). */
+export const reviewerFileKinds = new Set([
+  'manuscript',
+  'figures',
+  'supplementary',
+  'revision',
+])
+
 export function toClientInvitation(item: InvitationWithRelations) {
+  const files = (item.manuscript?.files ?? [])
+    .filter((file) => reviewerFileKinds.has(file.kind))
+    .map((file) => ({
+      id: file.id,
+      kind: file.kind,
+      fileName: file.fileName,
+      sizeBytes: file.sizeBytes,
+    }))
+
   return {
     id: item.id,
     manuscriptId: item.manuscript?.number ?? item.manuscriptId,
@@ -36,6 +59,7 @@ export function toClientInvitation(item: InvitationWithRelations) {
     deadline: dateLabel(item.deadline)!,
     declineReason: item.declineReason ?? undefined,
     round: item.round,
+    files,
     review: item.review
       ? {
           id: item.review.id,

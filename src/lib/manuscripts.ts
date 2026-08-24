@@ -56,6 +56,12 @@ export type ApiInvitation = {
   deadline: string
   declineReason?: string
   round: number
+  files?: Array<{
+    id: string
+    kind: string
+    fileName: string
+    sizeBytes?: number | null
+  }>
   review?: {
     id: string
     recommendation: string

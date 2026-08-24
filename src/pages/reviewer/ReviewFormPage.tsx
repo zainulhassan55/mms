@@ -6,6 +6,7 @@ import {
 } from '../../data/mock'
 import { DetailHeader } from '../../components/ui'
 import {
+  downloadManuscriptFile,
   fetchInvitation,
   submitReviewReport,
   type ApiInvitation,
@@ -38,6 +39,8 @@ export function ReviewFormPage() {
   const [methodology, setMethodology] = useState(3)
   const [clarity, setClarity] = useState(3)
   const [error, setError] = useState<string | null>(null)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -155,6 +158,70 @@ export function ReviewFormPage() {
           </>
         }
       />
+
+      <section className="surface overflow-hidden">
+        <div className="panel-head">
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold tracking-wide text-ink-800">
+              Manuscript files
+            </h2>
+            <p className="mt-1 text-xs text-ink-500">
+              Download the submitted paper and any figures or supplements for
+              this review.
+            </p>
+          </div>
+        </div>
+        {downloadError ? (
+          <p className="border-b border-line bg-rose-50 px-4 py-2 text-sm text-rose-600">
+            {downloadError}
+          </p>
+        ) : null}
+        {!invitation.files || invitation.files.length === 0 ? (
+          <p className="px-4 py-8 text-sm text-ink-500">
+            No downloadable files are available for this invitation.
+          </p>
+        ) : (
+          <ul className="divide-y divide-line">
+            {invitation.files.map((file) => (
+              <li
+                key={file.id}
+                className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-ink-800">
+                    {file.fileName}
+                  </p>
+                  <p className="text-xs text-ink-400 capitalize">{file.kind}</p>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-ghost shrink-0"
+                  disabled={downloadingId === file.id}
+                  onClick={() => {
+                    setDownloadError(null)
+                    setDownloadingId(file.id)
+                    void downloadManuscriptFile(
+                      invitation.manuscriptId,
+                      file.id,
+                      file.fileName,
+                    )
+                      .catch((err) => {
+                        setDownloadError(
+                          err instanceof Error
+                            ? err.message
+                            : 'Download failed.',
+                        )
+                      })
+                      .finally(() => setDownloadingId(null))
+                  }}
+                >
+                  {downloadingId === file.id ? 'Downloading…' : 'Download'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <form className="surface space-y-5 p-5 sm:p-6" onSubmit={(e) => void handleSubmit(e)}>
         <div className="field">

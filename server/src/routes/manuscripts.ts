@@ -15,6 +15,7 @@ import {
   toClientInvitation,
   toClientReview,
   authorMaySeeReviews,
+  reviewerFileKinds,
 } from '../lib/reviews.js'
 import {
   buildFallbackPdf,
@@ -341,7 +342,7 @@ router.get(
 router.get(
   '/:id/files/:fileId/download',
   requireAuth,
-  requireRole('author', 'office', 'editor', 'production', 'admin'),
+  requireRole('author', 'office', 'editor', 'production', 'admin', 'reviewer'),
   async (req: AuthedRequest, res) => {
     try {
       const key = String(req.params.id)
@@ -374,6 +375,31 @@ router.get(
           error: 'This manuscript is not assigned to you.',
         })
         return
+      }
+      if (req.user!.role === 'reviewer') {
+        const invitation = await prisma.reviewInvitation.findFirst({
+          where: {
+            manuscriptId: manuscript.id,
+            reviewerId: req.user!.id,
+            status: 'accepted',
+          },
+          select: { id: true },
+        })
+        if (!invitation) {
+          res.status(403).json({
+            ok: false,
+            error: 'Accept a review invitation before downloading files.',
+          })
+          return
+        }
+        const fileKind = manuscript.files[0]!.kind
+        if (!reviewerFileKinds.has(fileKind)) {
+          res.status(403).json({
+            ok: false,
+            error: 'This file is not available for peer review.',
+          })
+          return
+        }
       }
 
       const file = manuscript.files[0]!

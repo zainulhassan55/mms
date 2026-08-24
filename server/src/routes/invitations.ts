@@ -23,6 +23,15 @@ const invitationManuscriptSelect = {
   number: true,
   title: true,
   journal: { select: { name: true } },
+  files: {
+    select: {
+      id: true,
+      kind: true,
+      fileName: true,
+      sizeBytes: true,
+    },
+    orderBy: { uploadedAt: 'asc' as const },
+  },
 } as const
 
 function scoreValue(raw: unknown, label: string) {
