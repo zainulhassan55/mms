@@ -1,98 +1,147 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthContext'
 import { GuestRoute, ProtectedRoute } from './auth/RouteGuards'
+import { RoleRoute } from './auth/RoleRoute'
 import { AppShell } from './components/AppShell'
+import { AdminAnalyticsPage } from './pages/admin/AdminAnalyticsPage'
+import { AdminJournalsPage } from './pages/admin/AdminJournalsPage'
+import { PortalSyncPage } from './pages/admin/PortalSyncPage'
 import { AuthorDashboard } from './pages/AuthorDashboard'
+import { EditorManuscriptPage } from './pages/editor/EditorManuscriptPage'
+import { EditorQueuePage } from './pages/editor/EditorQueuePage'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotificationsPage } from './pages/NotificationsPage'
-import { PlaceholderPage } from './pages/PlaceholderPage'
+import { ProofApprovalPage } from './pages/ProofApprovalPage'
+import { ProductionManuscriptPage } from './pages/production/ProductionManuscriptPage'
+import { ProductionQueuePage } from './pages/production/ProductionQueuePage'
 import { ProfilePage } from './pages/ProfilePage'
+import {
+  ReviewerActivePage,
+  ReviewerHistoryPage,
+} from './pages/reviewer/ReviewerActivePage'
+import { ReviewFormPage } from './pages/reviewer/ReviewFormPage'
+import { ReviewerInvitationsPage } from './pages/reviewer/ReviewerInvitationsPage'
+import { RegisterPage } from './pages/RegisterPage'
+import { RevisionPage } from './pages/RevisionPage'
+import { RoleHomeRedirect } from './pages/RoleHomeRedirect'
 import { SettingsPage } from './pages/SettingsPage'
+import { NewSubmissionPage } from './pages/submission/NewSubmissionPage'
 import { SubmissionDetailPage } from './pages/SubmissionDetailPage'
+
+function OfficeManuscriptRedirect() {
+  const { id } = useParams()
+  return <Navigate to={`/editor/manuscript/${id ?? ''}`} replace />
+}
 
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter basename="/mms">
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route
-            path="/login"
-            element={
-              <GuestRoute>
-                <LoginPage />
-              </GuestRoute>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <GuestRoute>
-                <PlaceholderPage
-                  standalone
-                  title="Create your author account"
-                  description="Registration flow comes next — email verification, profile, then your first submission."
-                />
-              </GuestRoute>
-            }
-          />
-          <Route
-            path="/forgot-password"
-            element={
-              <GuestRoute>
-                <PlaceholderPage
-                  standalone
-                  title="Reset your password"
-                  description="Password reset screens will follow once authentication is wired up."
-                />
-              </GuestRoute>
-            }
-          />
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route
+              path="/login"
+              element={
+                <GuestRoute>
+                  <LoginPage />
+                </GuestRoute>
+              }
+            />
+            <Route
+              path="/register"
+              element={
+                <GuestRoute>
+                  <RegisterPage />
+                </GuestRoute>
+              }
+            />
+            <Route
+              path="/forgot-password"
+              element={
+                <GuestRoute>
+                  <ForgotPasswordPage />
+                </GuestRoute>
+              }
+            />
 
-          <Route element={<ProtectedRoute />}>
-            <Route element={<AppShell />}>
-              <Route path="/dashboard" element={<AuthorDashboard />} />
-              <Route path="/author/submissions" element={<AuthorDashboard />} />
-              <Route
-                path="/author/submissions/new"
-                element={
-                  <PlaceholderPage
-                    title="New submission wizard"
-                    description="Multi-step manuscript submission UI is the next build step after design sign-off."
+            <Route element={<ProtectedRoute />}>
+              <Route element={<AppShell />}>
+                <Route path="/dashboard" element={<RoleHomeRedirect />} />
+
+                <Route element={<RoleRoute allow={['author']} />}>
+                  <Route path="/author/dashboard" element={<AuthorDashboard />} />
+                  <Route path="/author/submissions" element={<AuthorDashboard />} />
+                  <Route
+                    path="/author/submissions/new"
+                    element={<NewSubmissionPage />}
                   />
-                }
-              />
-              <Route
-                path="/author/submissions/:id"
-                element={<SubmissionDetailPage />}
-              />
-              <Route
-                path="/author/submissions/:id/revise"
-                element={
-                  <PlaceholderPage
-                    title="Revision upload"
-                    description="Authors will upload revised files and a response letter here."
+                  <Route
+                    path="/author/submissions/:id"
+                    element={<SubmissionDetailPage />}
                   />
-                }
-              />
-              <Route
-                path="/author/submissions/:id/proof"
-                element={
-                  <PlaceholderPage
-                    title="Proof approval"
-                    description="Authors will review the production PDF and approve or request corrections."
+                  <Route
+                    path="/author/submissions/:id/revise"
+                    element={<RevisionPage />}
                   />
-                }
-              />
-              <Route path="/notifications" element={<NotificationsPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/settings" element={<SettingsPage />} />
+                  <Route
+                    path="/author/submissions/:id/proof"
+                    element={<ProofApprovalPage />}
+                  />
+                </Route>
+
+                <Route element={<RoleRoute allow={['editor', 'office']} />}>
+                  <Route path="/editor/queue" element={<EditorQueuePage />} />
+                  <Route
+                    path="/editor/manuscript/:id"
+                    element={<EditorManuscriptPage />}
+                  />
+                  <Route
+                    path="/office/screening"
+                    element={<Navigate to="/editor/queue" replace />}
+                  />
+                  <Route
+                    path="/office/manuscript/:id"
+                    element={<OfficeManuscriptRedirect />}
+                  />
+                </Route>
+
+                <Route element={<RoleRoute allow={['production', 'admin']} />}>
+                  <Route path="/production/queue" element={<ProductionQueuePage />} />
+                  <Route
+                    path="/production/manuscript/:id"
+                    element={<ProductionManuscriptPage />}
+                  />
+                </Route>
+
+                <Route element={<RoleRoute allow={['admin']} />}>
+                  <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
+                  <Route path="/admin/portal-sync" element={<PortalSyncPage />} />
+                  <Route path="/admin/journals" element={<AdminJournalsPage />} />
+                </Route>
+
+                <Route element={<RoleRoute allow={['reviewer']} />}>
+                  <Route
+                    path="/reviewer/invitations"
+                    element={<ReviewerInvitationsPage />}
+                  />
+                  <Route path="/reviewer/active" element={<ReviewerActivePage />} />
+                  <Route
+                    path="/reviewer/history"
+                    element={<ReviewerHistoryPage />}
+                  />
+                  <Route path="/reviewer/review/:id" element={<ReviewFormPage />} />
+                </Route>
+
+                <Route path="/notifications" element={<NotificationsPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+              </Route>
             </Route>
-          </Route>
 
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </BrowserRouter>
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </BrowserRouter>
     </AuthProvider>
   )
 }

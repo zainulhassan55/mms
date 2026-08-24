@@ -2,12 +2,18 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 
-export function UserMenu() {
+type UserMenuProps = {
+  /** Dark sidebar styling for the left app rail */
+  variant?: 'default' | 'sidebar'
+}
+
+export function UserMenu({ variant = 'default' }: UserMenuProps) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const menuId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
+  const sidebar = variant === 'sidebar'
 
   useEffect(() => {
     if (!open) return
@@ -42,20 +48,46 @@ export function UserMenu() {
     <div className="relative" ref={rootRef}>
       <button
         type="button"
-        className="flex items-center gap-2.5 rounded-full border border-transparent py-1 pr-1 pl-1 transition hover:border-line hover:bg-paper-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-500 sm:pr-2.5"
+        className={
+          sidebar
+            ? 'flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-white/90 transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60'
+            : 'flex items-center gap-2.5 rounded-full border border-transparent py-1 pr-1 pl-1 transition hover:border-line hover:bg-paper-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-500 sm:pr-2.5'
+        }
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}
         onClick={() => setOpen((value) => !value)}
       >
-        <span className="grid h-10 w-10 place-items-center rounded-full bg-signal-100 font-semibold text-signal-700">
+        <span
+          className={
+            sidebar
+              ? 'grid h-9 w-9 place-items-center rounded-full bg-white/15 text-sm font-semibold text-white'
+              : 'grid h-10 w-10 place-items-center rounded-full bg-signal-100 font-semibold text-signal-700'
+          }
+        >
           {user.initials}
         </span>
-        <span className="hidden leading-tight text-left sm:block">
-          <span className="block text-sm font-semibold text-ink-800">{user.name}</span>
-          <span className="block text-xs text-ink-500">{user.role}</span>
+        <span className={sidebar ? 'min-w-0 flex-1 leading-tight' : 'hidden leading-tight text-left sm:block'}>
+          <span
+            className={
+              sidebar
+                ? 'block truncate text-sm font-semibold text-white'
+                : 'block text-sm font-semibold text-ink-800'
+            }
+          >
+            {user.name}
+          </span>
+          <span
+            className={
+              sidebar
+                ? 'block truncate text-xs text-white/65'
+                : 'block text-xs text-ink-500'
+            }
+          >
+            {user.roleLabel}
+          </span>
         </span>
-        <ChevronIcon open={open} />
+        <ChevronIcon open={open} light={sidebar} />
       </button>
 
       {open ? (
@@ -63,12 +95,16 @@ export function UserMenu() {
           id={menuId}
           role="menu"
           aria-label="Account menu"
-          className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-[var(--radius-lg)] border border-line bg-paper-elevated shadow-[var(--shadow-lift)] animate-fade"
+          className={
+            sidebar
+              ? 'absolute bottom-[calc(100%+0.5rem)] left-0 z-50 w-full min-w-[14rem] overflow-hidden rounded-[var(--radius-lg)] border border-line bg-paper-elevated shadow-[var(--shadow-lift)] animate-fade'
+              : 'absolute right-0 z-50 mt-2 w-72 overflow-hidden rounded-[var(--radius-lg)] border border-line bg-paper-elevated shadow-[var(--shadow-lift)] animate-fade'
+          }
         >
           <div className="border-b border-line bg-paper-soft px-4 py-3">
             <p className="text-sm font-semibold text-ink-800">{user.name}</p>
             <p className="mt-0.5 truncate text-xs text-ink-500">{user.email}</p>
-            <p className="mt-1 text-xs font-medium text-signal-700">{user.role}</p>
+            <p className="mt-1 text-xs font-medium text-signal-700">{user.roleLabel}</p>
           </div>
 
           <div className="p-1.5">
@@ -121,10 +157,10 @@ function MenuLink({
   )
 }
 
-function ChevronIcon({ open }: { open: boolean }) {
+function ChevronIcon({ open, light = false }: { open: boolean; light?: boolean }) {
   return (
     <svg
-      className={`hidden text-ink-500 transition sm:block ${open ? 'rotate-180' : ''}`}
+      className={`transition ${light ? 'text-white/70' : 'hidden text-ink-500 sm:block'} ${open ? 'rotate-180' : ''}`}
       width="14"
       height="14"
       viewBox="0 0 16 16"

@@ -1,0 +1,257 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AppRole {
+  author
+  office
+  editor
+  reviewer
+  production
+  admin
+}
+
+enum ManuscriptStatus {
+  draft
+  submitted
+  formatting_requested
+  under_review
+  revision_requested
+  accepted
+  in_production
+  proof_sent
+  ready_for_publication
+  published
+  rejected
+}
+
+enum InvitationStatus {
+  sent
+  accepted
+  declined
+  overdue
+}
+
+enum ReviewRecommendation {
+  accept
+  minor_revision
+  major_revision
+  reject
+}
+
+enum PortalSyncStatus {
+  pending
+  synced
+  failed
+}
+
+model User {
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  passwordHash          String?
+  passwordResetToken    String?
+  passwordResetExpires  DateTime?
+  name                  String
+  initials              String
+  role                  AppRole
+  affiliation           String?
+  expertise             String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  manuscriptsAuthored   Manuscript[]         @relation("SubmittingAuthor")
+  manuscriptsAssigned   Manuscript[]         @relation("AssignedEditor")
+  invitationsSent       ReviewInvitation[]   @relation("InvitationInviter")
+  invitationsReceived   ReviewInvitation[]   @relation("InvitationReviewer")
+  reviewsWritten        ReviewReport[]
+  decisionsMade         EditorialDecision[]
+  activities            ActivityEvent[]
+  coAuthorships         ManuscriptAuthor[]
+}
+
+model Journal {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String   @unique
+  issn        String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  manuscripts Manuscript[]
+}
+
+model Manuscript {
+  id                 String           @id @default(cuid())
+  number             String           @unique
+  title              String
+  abstract           String?
+  keywords           String?
+  articleType        String
+  specialIssue       String?
+  status             ManuscriptStatus @default(draft)
+  version            Int              @default(1)
+  authorsText        String
+  officeNotes        String?
+  rejectReason       String?
+  decision           ReviewRecommendation?
+  decisionLetter     String?
+  decisionAt         DateTime?
+  revisionDueAt      DateTime?
+  lastResponseLetter String?
+  doi                String?
+  proofFileName      String?
+  proofRound         Int?
+  proofCorrections   String?
+  productionNotes    String?
+  portalSyncStatus   PortalSyncStatus?
+  portalSyncedAt     DateTime?
+  volume             String?
+  issue              String?
+  submittedAt        DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  journalId           String
+  journal             Journal @relation(fields: [journalId], references: [id])
+  submittingAuthorId  String
+  submittingAuthor    User    @relation("SubmittingAuthor", fields: [submittingAuthorId], references: [id])
+  assignedEditorId    String?
+  assignedEditor      User?   @relation("AssignedEditor", fields: [assignedEditorId], references: [id])
+
+  authors      ManuscriptAuthor[]
+  files        ManuscriptFile[]
+  invitations  ReviewInvitation[]
+  reviews      ReviewReport[]
+  decisions    EditorialDecision[]
+  activities   ActivityEvent[]
+  portalSyncs  PortalSyncEvent[]
+
+  @@index([status])
+  @@index([journalId])
+  @@index([submittingAuthorId])
+  @@index([assignedEditorId])
+}
+
+model ManuscriptAuthor {
+  id           String  @id @default(cuid())
+  manuscriptId String
+  manuscript   Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  userId       String?
+  user         User?   @relation(fields: [userId], references: [id])
+  name         String
+  email        String
+  affiliation  String?
+  isCorresponding Boolean @default(false)
+  sortOrder    Int     @default(0)
+
+  @@index([manuscriptId])
+}
+
+model ManuscriptFile {
+  id           String   @id @default(cuid())
+  manuscriptId String
+  manuscript   Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  kind         String
+  fileName     String
+  storagePath  String?
+  mimeType     String?
+  sizeBytes    Int?
+  uploadedAt   DateTime @default(now())
+
+  @@index([manuscriptId])
+}
+
+model ReviewInvitation {
+  id             String           @id @default(cuid())
+  manuscriptId   String
+  manuscript     Manuscript       @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  reviewerId     String
+  reviewer       User             @relation("InvitationReviewer", fields: [reviewerId], references: [id])
+  invitedById    String?
+  invitedBy      User?            @relation("InvitationInviter", fields: [invitedById], references: [id])
+  status         InvitationStatus @default(sent)
+  invitedAt      DateTime         @default(now())
+  deadline       DateTime
+  declineReason  String?
+  round          Int              @default(1)
+
+  review ReviewReport?
+
+  @@index([manuscriptId])
+  @@index([reviewerId])
+  @@index([status])
+}
+
+model ReviewReport {
+  id               String               @id @default(cuid())
+  invitationId     String               @unique
+  invitation       ReviewInvitation     @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  manuscriptId     String
+  manuscript       Manuscript           @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  reviewerId       String
+  reviewer         User                 @relation(fields: [reviewerId], references: [id])
+  summary          String
+  strengths        String
+  weaknesses       String
+  commentsToAuthor String
+  commentsToEditor String
+  recommendation   ReviewRecommendation
+  originality      Int?
+  methodology      Int?
+  clarity          Int?
+  submittedAt      DateTime             @default(now())
+
+  @@index([manuscriptId])
+  @@index([reviewerId])
+}
+
+model EditorialDecision {
+  id           String               @id @default(cuid())
+  manuscriptId String
+  manuscript   Manuscript           @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  decidedById  String
+  decidedBy    User                 @relation(fields: [decidedById], references: [id])
+  decision     ReviewRecommendation
+  letter       String
+  round        Int                  @default(1)
+  decidedAt    DateTime             @default(now())
+
+  @@index([manuscriptId])
+}
+
+model ActivityEvent {
+  id           String   @id @default(cuid())
+  manuscriptId String?
+  manuscript   Manuscript? @relation(fields: [manuscriptId], references: [id], onDelete: SetNull)
+  actorId      String?
+  actor        User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  label        String
+  detail       String
+  createdAt    DateTime @default(now())
+
+  @@index([manuscriptId])
+  @@index([createdAt])
+}
+
+model PortalSyncEvent {
+  id             String           @id @default(cuid())
+  manuscriptId   String
+  manuscript     Manuscript       @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  title          String
+  doi            String
+  journalName    String
+  status         PortalSyncStatus
+  endpoint       String
+  detail         String
+  payloadPreview String
+  createdAt      DateTime         @default(now())
+
+  @@index([manuscriptId])
+  @@index([status])
+}

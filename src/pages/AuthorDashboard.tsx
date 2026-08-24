@@ -1,162 +1,180 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { StatusBadge } from '../components/StatusBadge'
-import { activity, manuscripts } from '../data/mock'
-
-const actionNeeded = manuscripts.filter((m) =>
-  ['revision_requested', 'proof_sent', 'draft'].includes(m.status),
-)
+import {
+  DataPanel,
+  EmptyState,
+  PageHeader,
+  ScrollArea,
+  SectionTitle,
+  StatCard,
+} from '../components/ui'
+import {
+  fetchMyActivity,
+  fetchMyManuscripts,
+  type ApiActivity,
+  type ApiManuscript,
+} from '../lib/manuscripts'
 
 export function AuthorDashboard() {
+  const [manuscripts, setManuscripts] = useState<ApiManuscript[]>([])
+  const [activity, setActivity] = useState<ApiActivity[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      setLoading(true)
+      setError(null)
+      try {
+        const [ms, act] = await Promise.all([
+          fetchMyManuscripts(),
+          fetchMyActivity(),
+        ])
+        if (!cancelled) {
+          setManuscripts(ms)
+          setActivity(act)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load manuscripts.')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const actionNeeded = manuscripts.filter((m) =>
+    ['revision_requested', 'proof_sent', 'draft', 'formatting_requested'].includes(
+      m.status,
+    ),
+  )
+
   return (
-    <div className="space-y-8">
-      <section className="animate-rise">
-        <p className="text-xs font-semibold tracking-[0.14em] text-signal-600 uppercase">
-          Author workspace
-        </p>
-        <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-800 sm:text-4xl">
-              Your manuscripts
-            </h1>
-            <p className="mt-2 max-w-xl text-ink-500">
-              Follow every submission from draft to publication. Action items
-              stay at the top so nothing stalls.
-            </p>
-          </div>
-          <Link to="/author/submissions/new" className="btn btn-signal shrink-0">
+    <div className="page-stack animate-rise">
+      <PageHeader
+        title="Your manuscripts"
+        description="Track submissions from draft to publication. Items that need you stay at the top."
+        actions={
+          <Link to="/author/submissions/new" className="btn btn-signal">
             <PlusIcon />
             New submission
           </Link>
-        </div>
-      </section>
+        }
+      />
 
-      <section className="grid gap-4 sm:grid-cols-3 animate-rise-delay-1">
-        <Stat
-          label="Active submissions"
-          value={String(
-            manuscripts.filter((m) => !['published', 'rejected', 'draft'].includes(m.status))
-              .length,
-          )}
+      {error ? (
+        <p className="rounded-[var(--radius-lg)] bg-rose-50 px-4 py-3 text-sm text-rose-600">
+          {error}
+        </p>
+      ) : null}
+
+      <section className="grid gap-3 sm:grid-cols-3">
+        <StatCard
+          label="Active"
+          tone="sky"
+          icon={<DocIcon />}
+          value={
+            loading
+              ? '—'
+              : String(
+                  manuscripts.filter(
+                    (m) => !['published', 'rejected', 'draft'].includes(m.status),
+                  ).length,
+                )
+          }
         />
-        <Stat label="Needs your action" value={String(actionNeeded.length)} accent />
-        <Stat
+        <StatCard
+          label="Needs action"
+          tone="amber"
+          accent
+          icon={<AlertIcon />}
+          value={loading ? '—' : String(actionNeeded.length)}
+        />
+        <StatCard
           label="Published"
-          value={String(manuscripts.filter((m) => m.status === 'published').length)}
+          tone="green"
+          icon={<CheckIcon />}
+          value={
+            loading
+              ? '—'
+              : String(manuscripts.filter((m) => m.status === 'published').length)
+          }
         />
       </section>
 
       {actionNeeded.length > 0 ? (
-        <section className="animate-rise-delay-2">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold tracking-wide text-ink-700 uppercase">
-              Needs attention
-            </h2>
-          </div>
-          <div className="grid gap-3">
+        <DataPanel
+          title="Needs attention"
+          count={actionNeeded.length}
+          accent
+          size="sm"
+        >
+          <ul className="divide-y divide-line">
             {actionNeeded.map((item) => (
-              <Link
-                key={item.id}
-                to={`/author/submissions/${item.id}`}
-                className="surface group flex flex-col gap-3 p-4 transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)] sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold tracking-wide text-ink-500">
-                    {item.id} · {item.journal}
-                  </p>
-                  <p className="mt-1 truncate font-semibold text-ink-800 group-hover:text-signal-700">
-                    {item.title}
-                  </p>
-                </div>
-                <StatusBadge status={item.status} />
-              </Link>
+              <li key={item.id}>
+                <ManuscriptLink item={item} />
+              </li>
             ))}
-          </div>
-        </section>
+          </ul>
+        </DataPanel>
       ) : null}
 
-      <section className="grid gap-6 lg:grid-cols-[1.4fr_0.9fr] animate-rise-delay-3">
-        <div>
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold tracking-wide text-ink-700 uppercase">
-              All submissions
-            </h2>
-            <Link
-              to="/author/submissions"
-              className="text-sm font-semibold text-signal-600 hover:text-signal-700"
-            >
-              View all
-            </Link>
-          </div>
-
-          <div className="surface overflow-hidden">
+      <section className="grid gap-6 lg:grid-cols-[1.45fr_0.9fr]">
+        <DataPanel
+          title="Submissions"
+          count={loading ? undefined : manuscripts.length}
+          size="lg"
+          scroll={!loading && manuscripts.length > 0}
+        >
+          {loading ? (
+            <EmptyState title="Loading">Loading manuscripts…</EmptyState>
+          ) : manuscripts.length === 0 ? (
+            <EmptyState title="No submissions yet">
+              <Link
+                to="/author/submissions/new"
+                className="font-semibold text-signal-600 hover:text-signal-700"
+              >
+                Start your first one
+              </Link>
+            </EmptyState>
+          ) : (
             <ul className="divide-y divide-line">
               {manuscripts.map((item) => (
                 <li key={item.id}>
-                  <Link
-                    to={`/author/submissions/${item.id}`}
-                    className="flex flex-col gap-3 px-4 py-4 transition hover:bg-paper-soft sm:flex-row sm:items-center sm:justify-between sm:gap-6"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-ink-500">
-                        <span>{item.id}</span>
-                        <span className="text-ink-300">·</span>
-                        <span>{item.articleType}</span>
-                        <span className="text-ink-300">·</span>
-                        <span>v{item.version}</span>
-                      </div>
-                      <p className="mt-1 truncate font-semibold text-ink-800">
-                        {item.title}
-                      </p>
-                      <p className="mt-1 truncate text-sm text-ink-500">
-                        {item.authors}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-                      <StatusBadge status={item.status} compact />
-                      <p className="text-xs text-ink-300">Updated {item.updatedAt}</p>
-                    </div>
-                  </Link>
+                  <ManuscriptLink item={item} showAuthors />
                 </li>
               ))}
             </ul>
-          </div>
-        </div>
+          )}
+        </DataPanel>
 
-        <aside className="space-y-4">
-          <h2 className="text-sm font-semibold tracking-wide text-ink-700 uppercase">
-            Recent activity
-          </h2>
-          <div className="surface-quiet p-4">
-            <ol className="space-y-4">
-              {activity.map((item, index) => (
-                <li key={item.id} className="relative flex gap-3 pl-1">
-                  {index < activity.length - 1 ? (
-                    <span className="absolute top-3 left-[0.55rem] h-[calc(100%+0.5rem)] w-px bg-line" />
-                  ) : null}
-                  <span className="relative mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-signal-500 ring-4 ring-signal-50" />
-                  <div>
-                    <p className="text-sm font-semibold text-ink-800">{item.label}</p>
-                    <p className="mt-0.5 text-sm text-ink-500">{item.detail}</p>
-                    <p className="mt-1 text-xs font-medium text-ink-300">
-                      {item.manuscriptId} · {item.at}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </div>
-
-          <div className="surface overflow-hidden border-ink-800 bg-ink-800 p-5 text-white">
-            <p className="font-display text-xl font-semibold tracking-tight text-white">
-              Keep momentum
-            </p>
-            <p className="mt-2 text-sm leading-relaxed text-ink-100">
-              Proofs and revision requests appear here with clear deadlines —
-              no more hunting through email threads.
-            </p>
-            <Link to="/author/submissions/new" className="btn btn-on-dark mt-5">
-              Start a submission
-            </Link>
+        <aside>
+          <SectionTitle title="Recent activity" />
+          <div className="surface overflow-hidden">
+            {loading ? (
+              <p className="px-4 py-6 text-sm text-ink-500">Loading…</p>
+            ) : activity.length === 0 ? (
+              <p className="px-4 py-6 text-sm text-ink-500">No activity yet.</p>
+            ) : (
+              <ScrollArea size="md">
+                <ol className="space-y-4 p-4">
+                  {activity.map((item, index) => (
+                    <ActivityItem
+                      key={item.id}
+                      item={item}
+                      last={index === activity.length - 1}
+                    />
+                  ))}
+                </ol>
+              </ScrollArea>
+            )}
           </div>
         </aside>
       </section>
@@ -164,26 +182,58 @@ export function AuthorDashboard() {
   )
 }
 
-function Stat({
-  label,
-  value,
-  accent = false,
+function ManuscriptLink({
+  item,
+  showAuthors = false,
 }: {
-  label: string
-  value: string
-  accent?: boolean
+  item: ApiManuscript
+  showAuthors?: boolean
 }) {
   return (
-    <div
-      className={`surface p-4 ${accent ? 'border-signal-100 bg-signal-50/60' : ''}`}
-    >
-      <p className="text-xs font-semibold tracking-wide text-ink-500 uppercase">
-        {label}
-      </p>
-      <p className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink-800">
-        {value}
-      </p>
-    </div>
+    <Link to={`/author/submissions/${item.id}`} className="icon-row">
+      <span className="icon-row-glyph" aria-hidden>
+        <DocIcon />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-semibold text-signal-600">
+          {item.id}
+          <span className="text-ink-300"> · </span>
+          <span className="text-ink-500">{item.journal}</span>
+        </p>
+        <p className="mt-0.5 truncate font-semibold text-ink-800">{item.title}</p>
+        {showAuthors ? (
+          <p className="mt-0.5 truncate text-sm text-ink-500">{item.authors}</p>
+        ) : null}
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1.5">
+        <StatusBadge status={item.status} compact />
+        <p className="text-xs text-ink-300">Updated {item.updatedAt}</p>
+      </div>
+    </Link>
+  )
+}
+
+function ActivityItem({
+  item,
+  last,
+}: {
+  item: ApiActivity
+  last: boolean
+}) {
+  return (
+    <li className="relative flex gap-3 pl-1">
+      {!last ? (
+        <span className="absolute top-3 left-[0.55rem] h-[calc(100%+0.5rem)] w-px bg-line" />
+      ) : null}
+      <span className="relative mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-signal-500 ring-4 ring-signal-50" />
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-ink-800">{item.label}</p>
+        <p className="mt-0.5 text-sm text-ink-500">{item.detail}</p>
+        <p className="mt-1 text-xs font-medium text-ink-300">
+          {item.manuscriptId} · {item.at}
+        </p>
+      </div>
+    </li>
   )
 }
 
@@ -195,6 +245,54 @@ function PlusIcon() {
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function DocIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path d="M14 3v4h4" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function AlertIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 9v4M12 17h.01"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M10.3 4.8 2.9 17.2A2 2 0 0 0 4.6 20h14.8a2 2 0 0 0 1.7-2.8L13.7 4.8a2 2 0 0 0-3.4 0Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.7" />
+      <path
+        d="m8.5 12.2 2.4 2.4 4.6-5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   )

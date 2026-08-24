@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { PageHeader } from '../components/ui'
 
 export function ProfilePage() {
   const { user } = useAuth()
@@ -7,18 +8,11 @@ export function ProfilePage() {
   if (!user) return null
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 animate-rise">
-      <div>
-        <p className="text-xs font-semibold tracking-[0.14em] text-signal-600 uppercase">
-          Account
-        </p>
-        <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink-800">
-          Your profile
-        </h1>
-        <p className="mt-2 text-ink-500">
-          Basic author details used across submissions and correspondence.
-        </p>
-      </div>
+    <div className="page-stack animate-rise">
+      <PageHeader
+        title="Your profile"
+        description="Basic account details used across submissions and correspondence."
+      />
 
       <div className="surface p-5 sm:p-6">
         <div className="flex items-center gap-4 border-b border-line pb-5">
@@ -27,14 +21,14 @@ export function ProfilePage() {
           </span>
           <div>
             <p className="text-lg font-semibold text-ink-800">{user.name}</p>
-            <p className="text-sm text-ink-500">{user.role}</p>
+            <p className="text-sm text-ink-500">{user.roleLabel}</p>
           </div>
         </div>
 
         <dl className="mt-5 grid gap-4 sm:grid-cols-2">
           <Field label="Email" value={user.email} />
           <Field label="Affiliation" value={user.affiliation} />
-          <Field label="Role" value={user.role} />
+          <Field label="Role" value={user.roleLabel} />
           <Field label="ORCID" value="Not linked yet" />
         </dl>
       </div>
@@ -43,8 +37,8 @@ export function ProfilePage() {
         <Link to="/settings" className="btn btn-ghost">
           Account settings
         </Link>
-        <Link to="/dashboard" className="btn btn-signal">
-          Back to dashboard
+        <Link to="/notifications" className="btn btn-ghost">
+          Notifications
         </Link>
       </div>
     </div>

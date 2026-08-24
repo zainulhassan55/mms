@@ -1,84 +1,133 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
+import { homePathForRole, useAuth } from '../auth/AuthContext'
 import { BrandMark } from '../components/BrandMark'
+import { PasswordInput } from '../components/PasswordInput'
+import { Toast } from '../components/Toast'
 
 export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { login } = useAuth()
-  const [email, setEmail] = useState('amina.rahman@example.edu')
-  const [password, setPassword] = useState('demo')
+  const locationState = (location.state as {
+    registered?: boolean
+    email?: string
+    from?: string
+  } | null) ?? null
 
-  const from =
-    (location.state as { from?: string } | null)?.from &&
-    (location.state as { from?: string }).from !== '/login'
-      ? (location.state as { from: string }).from
-      : '/dashboard'
+  const [email, setEmail] = useState(locationState?.email ?? '')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
+  const [toast, setToast] = useState<string | null>(
+    locationState?.registered
+      ? 'Sign up successful. Please sign in with your new account.'
+      : null,
+  )
+  const [redirectAfterLogin] = useState(
+    locationState?.from && locationState.from !== '/login'
+      ? locationState.from
+      : null,
+  )
 
-  function handleSubmit(event: FormEvent) {
+  useEffect(() => {
+    if (locationState?.registered) {
+      navigate(location.pathname, {
+        replace: true,
+        state: redirectAfterLogin ? { from: redirectAfterLogin } : {},
+      })
+    }
+  }, [
+    locationState?.registered,
+    location.pathname,
+    navigate,
+    redirectAfterLogin,
+  ])
+
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    login(email)
-    navigate(from, { replace: true })
+    setError(null)
+
+    if (!email.trim()) {
+      setError('Please enter your email.')
+      return
+    }
+    if (!password) {
+      setError('Please enter your password.')
+      return
+    }
+
+    setPending(true)
+    try {
+      const signedIn = await login(email.trim(), password)
+      navigate(redirectAfterLogin ?? homePathForRole(signedIn.role), {
+        replace: true,
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign in failed.')
+    } finally {
+      setPending(false)
+    }
   }
 
   return (
-    <div className="auth-canvas relative flex min-h-screen items-center justify-center px-4 py-10">
-      <div className="relative z-10 grid w-full max-w-5xl overflow-hidden rounded-[1.5rem] border border-white/15 bg-white/5 shadow-[0_30px_80px_rgba(0,0,0,0.35)] backdrop-blur-sm lg:grid-cols-[1.15fr_0.95fr]">
-        <section className="relative flex flex-col justify-between gap-10 p-8 sm:p-10 lg:p-12">
-          <div className="animate-rise">
-            <BrandMark variant="light" size="lg" />
-          </div>
+    <div className="auth-canvas relative min-h-screen lg:grid lg:grid-cols-2">
+      {toast ? (
+        <Toast message={toast} tone="success" onClose={() => setToast(null)} />
+      ) : null}
 
-          <div className="max-w-md space-y-4 animate-rise-delay-1">
-            <h1
-              className="font-display text-4xl leading-[1.08] font-semibold tracking-tight sm:text-5xl"
-              style={{ color: '#ffffff' }}
-            >
-              Submit. Review. Publish — with clarity at every step.
-            </h1>
-            <p
-              className="text-base leading-relaxed sm:text-lg"
-              style={{ color: 'rgba(255,255,255,0.78)' }}
-            >
-              Track your manuscript from first draft through peer review,
-              production, and online publication.
-            </p>
-          </div>
+      <aside className="relative z-10 hidden min-h-screen flex-col justify-between p-10 xl:p-14 lg:flex">
+        <div className="animate-rise">
+          <BrandMark variant="light" size="lg" />
+        </div>
 
-          <ul
-            className="grid gap-3 text-sm sm:grid-cols-3 animate-rise-delay-2"
-            style={{ color: 'rgba(255,255,255,0.78)' }}
-          >
-            {[
-              'Real-time status',
-              'Role-clear workflows',
-              'Full audit trail',
-            ].map((item) => (
-              <li
-                key={item}
-                className="rounded-xl border border-white/12 bg-white/8 px-3.5 py-3 font-medium"
-              >
-                {item}
-              </li>
-            ))}
+        <div className="max-w-lg space-y-4 animate-rise-delay-1">
+          <h1 className="font-display text-[2.55rem] leading-[1.06] font-semibold tracking-tight text-white xl:text-[2.95rem]">
+            Manuscripts, managed with clarity.
+          </h1>
+          <p className="max-w-md text-[0.95rem] leading-relaxed text-white/70">
+            One workspace for submission, peer review, production, and
+            publication — each role in its own queue.
+          </p>
+          <ul className="mt-6 space-y-2.5 text-sm text-white/65">
+            <li className="flex items-center gap-3">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-signal-400" />
+              Role-locked dashboards and secure accounts
+            </li>
+            <li className="flex items-center gap-3">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-signal-400" />
+              End-to-end editorial workflow
+            </li>
+            <li className="flex items-center gap-3">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-signal-400" />
+              Production proofs and portal sync
+            </li>
           </ul>
-        </section>
+        </div>
 
-        <section className="border-t border-white/10 bg-paper-elevated p-8 sm:p-10 lg:border-t-0 lg:border-l lg:border-white/10 animate-fade">
-          <div className="mb-8">
-            <p className="text-xs font-semibold tracking-[0.14em] text-signal-600 uppercase">
-              Welcome back
-            </p>
-            <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink-800">
-              Sign in to MMS
-            </h2>
-            <p className="mt-2 text-sm text-ink-500">
-              Authors, reviewers, and editors use the same secure workspace.
-            </p>
+        <p className="text-sm text-white/45 animate-rise-delay-2">
+          CCRI · Manuscript Management System
+        </p>
+      </aside>
+
+      <section className="relative z-10 flex min-h-screen items-center justify-center overflow-y-auto bg-white px-4 py-10 sm:px-8 lg:bg-paper-elevated lg:px-12">
+        <div className="w-full max-w-[24.5rem] animate-fade">
+          <div className="mb-7 lg:hidden">
+            <BrandMark size="md" />
           </div>
 
-          <form className="space-y-4" onSubmit={handleSubmit}>
+          <p className="text-[0.7rem] font-semibold tracking-[0.16em] text-signal-600 uppercase">
+            Sign in
+          </p>
+          <h2 className="mt-2 font-display text-[1.8rem] font-semibold tracking-tight text-ink-800">
+            Welcome back
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-ink-500">
+            Use your MMS account. Your dashboard matches the role you registered
+            with.
+          </p>
+
+          <form className="mt-7 space-y-3.5" onSubmit={handleSubmit} noValidate>
             <div className="field">
               <label htmlFor="email">Email</label>
               <input
@@ -88,51 +137,53 @@ export function LoginPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
+                placeholder="you@institution.edu"
               />
             </div>
 
-            <div className="field">
-              <div className="flex items-center justify-between gap-3">
-                <label htmlFor="password">Password</label>
-                <Link
-                  to="/forgot-password"
-                  className="text-xs font-semibold text-signal-600 hover:text-signal-700"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+            <PasswordInput
+              id="password"
+              label="Password"
+              value={password}
+              onChange={setPassword}
+              autoComplete="current-password"
+            />
+
+            <div className="-mt-0.5 flex justify-end">
+              <Link
+                to="/forgot-password"
+                className="text-xs font-semibold text-signal-600 hover:text-signal-700"
+              >
+                Forgot password?
+              </Link>
             </div>
 
-            <button type="submit" className="btn btn-signal w-full">
-              Sign in
+            {error ? (
+              <p className="rounded-[0.7rem] bg-rose-50 px-3 py-2 text-sm text-rose-600">
+                {error}
+              </p>
+            ) : null}
+
+            <button
+              type="submit"
+              className="btn btn-signal w-full"
+              disabled={pending}
+            >
+              {pending ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-ink-500">
-            New author?{' '}
+          <p className="mt-7 text-center text-sm text-ink-500">
+            New here?{' '}
             <Link
               to="/register"
-              className="font-semibold text-signal-700 underline decoration-signal-400/60 underline-offset-4 hover:text-signal-600"
+              className="font-semibold text-signal-700 underline decoration-signal-400/40 underline-offset-4 hover:text-signal-600"
             >
               Create an account
             </Link>
           </p>
-
-          <p className="mt-8 rounded-xl bg-paper px-3.5 py-3 text-center text-xs text-ink-500">
-            Demo mode — any credentials will sign you in.
-          </p>
-        </section>
-      </div>
+        </div>
+      </section>
     </div>
   )
 }

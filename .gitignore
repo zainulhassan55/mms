@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Uploaded proof files
+server/uploads/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
