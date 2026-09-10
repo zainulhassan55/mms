@@ -103,6 +103,7 @@ model Manuscript {
   decisionLetter     String?
   decisionAt         DateTime?
   revisionDueAt      DateTime?
+  lastRevisionReminderAt DateTime?
   lastResponseLetter String?
   doi                String?
   proofFileName      String?
@@ -180,12 +181,16 @@ model ReviewInvitation {
   deadline       DateTime
   declineReason  String?
   round          Int              @default(1)
+  /** Last deadline reminder email sent to the reviewer */
+  lastReminderAt DateTime?
+  reminderCount  Int              @default(0)
 
   review ReviewReport?
 
   @@index([manuscriptId])
   @@index([reviewerId])
   @@index([status])
+  @@index([deadline])
 }
 
 model ReviewReport {

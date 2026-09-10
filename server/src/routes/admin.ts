@@ -4,6 +4,7 @@ import { requireAuth, type AuthedRequest } from '../auth/middleware.js'
 import { requireRole } from '../auth/requireRole.js'
 import { toClientActivity, toClientManuscript } from '../lib/manuscripts.js'
 import { manuscriptInclude } from '../lib/manuscripts.js'
+import { runDeadlineReminders } from '../lib/reminders.js'
 
 const router = Router()
 
@@ -207,6 +208,24 @@ router.get(
         ok: false,
         error:
           error instanceof Error ? error.message : 'Failed to load directory',
+      })
+    }
+  },
+)
+
+router.post(
+  '/reminders/run',
+  requireAuth,
+  requireRole('admin', 'office'),
+  async (_req: AuthedRequest, res) => {
+    try {
+      const result = await runDeadlineReminders()
+      res.json({ ok: true, result })
+    } catch (error) {
+      res.status(500).json({
+        ok: false,
+        error:
+          error instanceof Error ? error.message : 'Failed to run reminders',
       })
     }
   },

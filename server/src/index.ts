@@ -136,4 +136,20 @@ app.listen(port, () => {
   console.log(`MMS API listening on http://localhost:${port}`)
   console.log(`Manuscripts:  http://localhost:${port}/api/manuscripts`)
   console.log(`Invitations:  http://localhost:${port}/api/invitations`)
+
+  if (process.env.REMINDERS_ENABLED === 'true') {
+    const hours = Math.max(1, Number(process.env.REMINDERS_INTERVAL_HOURS || 24))
+    const intervalMs = hours * 60 * 60 * 1000
+    console.log(
+      `[reminders] In-process scheduler enabled (every ${hours}h). Prefer cron + "npm run reminders" in production.`,
+    )
+    const tick = () => {
+      void import('./lib/reminders.js')
+        .then(({ runDeadlineReminders }) => runDeadlineReminders())
+        .then((result) => console.log('[reminders] run complete', result))
+        .catch((error) => console.error('[reminders] run failed', error))
+    }
+    setTimeout(tick, 15_000)
+    setInterval(tick, intervalMs)
+  }
 })

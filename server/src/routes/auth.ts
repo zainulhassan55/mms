@@ -6,6 +6,8 @@ import { signAuthToken } from '../auth/jwt.js'
 import { requireAuth, type AuthedRequest } from '../auth/middleware.js'
 import { hashPassword, verifyPassword } from '../auth/password.js'
 import { roleLabels } from '../lib/labels.js'
+import { isEmailDeliveryEnabled } from '../lib/mail.js'
+import { notifyPasswordReset } from '../lib/workflowEmails.js'
 
 const router = Router()
 
@@ -216,7 +218,7 @@ router.post('/forgot-password', async (req, res) => {
   }
 
   const user = await prisma.user.findUnique({ where: { email } })
-  const emailDelivery = process.env.EMAIL_DELIVERY === 'true'
+  const emailDelivery = isEmailDeliveryEnabled()
   const generic = {
     ok: true,
     message: emailDelivery
@@ -238,6 +240,12 @@ router.post('/forgot-password', async (req, res) => {
       passwordResetToken: resetToken,
       passwordResetExpires,
     },
+  })
+
+  notifyPasswordReset({
+    email: user.email,
+    name: user.name,
+    resetToken,
   })
 
   if (!emailDelivery) {

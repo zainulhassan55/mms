@@ -27,6 +27,17 @@ import {
   saveRevisionBuffer,
   saveSubmissionBuffer,
 } from '../lib/uploads.js'
+import {
+  notifyAuthorProofSent,
+  notifyAuthorPublished,
+  notifyDeskRejected,
+  notifyEditorialDecision,
+  notifyEditorRevisionSubmitted,
+  notifyFormattingRequested,
+  notifyReviewerInvitation,
+  notifySubmissionReceived,
+  notifyUnderReview,
+} from '../lib/workflowEmails.js'
 
 const router = Router()
 const memoryUpload = multer({
@@ -607,6 +618,15 @@ router.post(
             })
           : manuscript
 
+      if (status === 'submitted') {
+        notifySubmissionReceived({
+          manuscriptId: withFiles.id,
+          number: withFiles.number,
+          title: withFiles.title,
+          journalName: journal.name,
+        })
+      }
+
       res.status(201).json({
         ok: true,
         manuscript: toClientManuscript(withFiles),
@@ -661,6 +681,13 @@ router.post(
           },
         },
         include: manuscriptInclude,
+      })
+
+      notifySubmissionReceived({
+        manuscriptId: manuscript.id,
+        number: manuscript.number,
+        title: manuscript.title,
+        journalName: manuscript.journal?.name,
       })
 
       res.json({ ok: true, manuscript: toClientManuscript(manuscript) })
@@ -846,6 +873,41 @@ router.post(
         return updated
       })
 
+      notifyEditorRevisionSubmitted({
+        manuscriptId: manuscript.id,
+        number: manuscript.number,
+        title: manuscript.title,
+        journalName: manuscript.journal?.name,
+        kind:
+          existing.status === 'formatting_requested' ? 'formatting' : 'content',
+      })
+
+      if (
+        reinvitePreviousReviewers &&
+        existing.status === 'revision_requested'
+      ) {
+        const eligible = existing.invitations.filter(
+          (item) => item.status === 'accepted' || item.review,
+        )
+        const unique = new Map(
+          eligible.map((item) => [item.reviewerId, item] as const),
+        )
+        for (const prior of unique.values()) {
+          if (!prior.reviewer?.email) continue
+          notifyReviewerInvitation({
+            reviewerEmail: prior.reviewer.email,
+            reviewerName: prior.reviewer.name,
+            number: manuscript.number,
+            title: manuscript.title,
+            journalName: manuscript.journal?.name,
+            deadline: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000)
+              .toISOString()
+              .slice(0, 10),
+            round: manuscript.version,
+          })
+        }
+      }
+
       res.json({ ok: true, manuscript: toClientManuscript(manuscript) })
     } catch (error) {
       res.status(500).json({
@@ -905,6 +967,13 @@ router.post(
           include: manuscriptInclude,
         })
 
+        notifyUnderReview({
+          manuscriptId: manuscript.id,
+          number: manuscript.number,
+          title: manuscript.title,
+          journalName: manuscript.journal?.name,
+        })
+
         res.json({ ok: true, manuscript: toClientManuscript(manuscript) })
         return
       }
@@ -932,6 +1001,14 @@ router.post(
             },
           },
           include: manuscriptInclude,
+        })
+
+        notifyFormattingRequested({
+          manuscriptId: manuscript.id,
+          number: manuscript.number,
+          title: manuscript.title,
+          journalName: manuscript.journal?.name,
+          notes,
         })
 
         res.json({ ok: true, manuscript: toClientManuscript(manuscript) })
@@ -962,6 +1039,14 @@ router.post(
             },
           },
           include: manuscriptInclude,
+        })
+
+        notifyDeskRejected({
+          manuscriptId: manuscript.id,
+          number: manuscript.number,
+          title: manuscript.title,
+          journalName: manuscript.journal?.name,
+          reason: rejectReason,
         })
 
         res.json({ ok: true, manuscript: toClientManuscript(manuscript) })
@@ -1066,6 +1151,16 @@ router.post(
           label: 'Reviewer invited',
           detail: `${reviewer.name} invited (due ${deadline.toISOString().slice(0, 10)}).`,
         },
+      })
+
+      notifyReviewerInvitation({
+        reviewerEmail: reviewer.email,
+        reviewerName: reviewer.name,
+        number: manuscript.number,
+        title: manuscript.title,
+        journalName: invitation.manuscript?.journal?.name,
+        deadline: deadline.toISOString().slice(0, 10),
+        round: manuscript.version,
       })
 
       res.status(201).json({
@@ -1195,6 +1290,22 @@ router.post(
           },
           include: manuscriptInclude,
         })
+      })
+
+      notifyEditorialDecision({
+        manuscriptId: manuscript.id,
+        number: manuscript.number,
+        title: manuscript.title,
+        journalName: manuscript.journal?.name,
+        decision: decision as
+          | 'accept'
+          | 'reject'
+          | 'minor_revision'
+          | 'major_revision',
+        letter,
+        revisionDueAt: revisionDueAt
+          ? revisionDueAt.toISOString().slice(0, 10)
+          : null,
       })
 
       res.json({ ok: true, manuscript: toClientManuscript(manuscript) })
@@ -1352,6 +1463,13 @@ router.post(
           },
         },
         include: manuscriptInclude,
+      })
+
+      notifyAuthorProofSent({
+        manuscriptId: manuscript.id,
+        number: manuscript.number,
+        title: manuscript.title,
+        journalName: manuscript.journal?.name,
       })
 
       res.json({ ok: true, manuscript: toClientManuscript(manuscript) })
@@ -1572,6 +1690,14 @@ router.post(
           },
         },
         include: manuscriptInclude,
+      })
+
+      notifyAuthorPublished({
+        manuscriptId: manuscript.id,
+        number: manuscript.number,
+        title: manuscript.title,
+        journalName: manuscript.journal?.name,
+        doi,
       })
 
       res.json({ ok: true, manuscript: toClientManuscript(manuscript) })

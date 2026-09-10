@@ -8,6 +8,10 @@ import {
   toClientInvitation,
   toClientReview,
 } from '../lib/reviews.js'
+import {
+  notifyEditorInvitationResponse,
+  notifyEditorReviewSubmitted,
+} from '../lib/workflowEmails.js'
 
 const router = Router()
 
@@ -178,7 +182,7 @@ router.post(
         res.status(404).json({ ok: false, error: 'Invitation not found.' })
         return
       }
-      if (invitation.status !== 'sent') {
+      if (invitation.status !== 'sent' && invitation.status !== 'overdue') {
         res.status(400).json({
           ok: false,
           error: 'This invitation was already answered.',
@@ -211,6 +215,15 @@ router.post(
               ? `${invitation.reviewer.name} accepted the review.`
               : `${invitation.reviewer.name} declined${declineReason ? `: ${declineReason}` : '.'}`,
         },
+      })
+
+      notifyEditorInvitationResponse({
+        manuscriptId: invitation.manuscriptId,
+        number: invitation.manuscript.number,
+        title: invitation.manuscript.title,
+        reviewerName: invitation.reviewer.name,
+        response: response === 'accepted' ? 'accepted' : 'declined',
+        declineReason: response === 'declined' ? declineReason : undefined,
       })
 
       res.json({ ok: true, invitation: toClientInvitation(updated) })
@@ -343,6 +356,14 @@ router.post(
           label: 'Review submitted',
           detail: `${invitation.reviewer.name} submitted a review (${recommendation.replace(/_/g, ' ')}).`,
         },
+      })
+
+      notifyEditorReviewSubmitted({
+        manuscriptId: invitation.manuscriptId,
+        number: invitation.manuscript.number,
+        title: invitation.manuscript.title,
+        reviewerName: invitation.reviewer.name,
+        recommendation,
       })
 
       res.status(201).json({
