@@ -357,7 +357,7 @@ async function main() {
 
   console.log('Done.')
   console.log(`Journal: ${journal.name} (${journal.code})`)
-  console.log(`Public URL path: /mms/j/ijdh`)
+  console.log(`Public URL path: /j/ijdh`)
   console.log(`Editor in Chief (admin): ${ADMIN_EMAIL}`)
   console.log('(Password = ADMIN_SEED_PASSWORD from .env)')
   console.log('Policies loaded from IJDH About, APC, Author Instruction, Editorial Process, Publication Ethics.')

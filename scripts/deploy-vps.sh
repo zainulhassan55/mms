@@ -51,4 +51,4 @@ else
   echo "WARN: pm2 not found — restart the Node app from CloudPanel."
 fi
 
-echo "==> Done. Check https://www.ccri-research.io/mms/ and /api/health"
+echo "==> Done. Check https://www.ccri-research.io/ and /api/health"

@@ -1,6 +1,10 @@
 import 'dotenv/config'
 import cors from 'cors'
-import express from 'express'
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+} from 'express'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { prisma } from './db.js'
@@ -53,26 +57,42 @@ app.use('/api/workflow', workflowRoutes)
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const frontendDist = path.resolve(__dirname, '../../dist')
-const frontendBase = (process.env.FRONTEND_BASE || '/mms').replace(/\/$/, '') || '/mms'
+const rawFrontendBase = process.env.FRONTEND_BASE
+const frontendBase =
+  !rawFrontendBase || rawFrontendBase === '/'
+    ? ''
+    : rawFrontendBase.replace(/\/$/, '')
 
-app.use(
-  frontendBase,
-  express.static(frontendDist, {
-    index: false,
-    fallthrough: true,
-  }),
-)
-
-// SPA fallback for React Router under /mms (avoid Express 5 /* path bugs)
-app.use(frontendBase, (req, res, next) => {
+function spaFallback(req: Request, res: Response, next: NextFunction) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
+    next()
+    return
+  }
+  if (req.path.startsWith('/api')) {
     next()
     return
   }
   res.sendFile(path.join(frontendDist, 'index.html'), (err) => {
     if (err) next()
   })
+}
+
+// Old bookmarks under /mms → site root
+app.use('/mms', (req, res) => {
+  const rest = req.url && req.url !== '/' ? req.url : ''
+  res.redirect(301, rest || '/')
 })
+
+if (frontendBase) {
+  app.use(
+    frontendBase,
+    express.static(frontendDist, { index: false, fallthrough: true }),
+  )
+  app.use(frontendBase, spaFallback)
+} else {
+  app.use(express.static(frontendDist, { index: false, fallthrough: true }))
+  app.use(spaFallback)
+}
 
 app.get(
   '/api/editors',

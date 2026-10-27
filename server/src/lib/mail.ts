@@ -34,7 +34,7 @@ export function appLink(path: string) {
     /\/$/,
     '',
   )
-  const base = (process.env.FRONTEND_BASE || '/mms').replace(/\/$/, '')
+  const base = (process.env.FRONTEND_BASE || '').replace(/\/$/, '')
   const normalized = path.startsWith('/') ? path : `/${path}`
   return `${origin}${base}${normalized}`
 }

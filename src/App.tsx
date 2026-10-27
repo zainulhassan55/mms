@@ -47,7 +47,7 @@ export default function App() {
   return (
     <AuthProvider>
       <ToastProvider>
-      <BrowserRouter basename="/mms">
+      <BrowserRouter>
         <Routes>
             <Route path="/" element={<PublicHomePage />} />
             <Route

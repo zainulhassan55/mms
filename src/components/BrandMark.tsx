@@ -1,7 +1,12 @@
+import { Link } from 'react-router-dom'
+
 type BrandMarkProps = {
   variant?: 'light' | 'dark'
   size?: 'sm' | 'md' | 'lg'
   showWordmark?: boolean
+  /** Where the logo/title navigates. Default: public journals home. */
+  to?: string
+  link?: boolean
 }
 
 const sizeMap = {
@@ -14,11 +19,13 @@ export function BrandMark({
   variant = 'dark',
   size = 'md',
   showWordmark = true,
+  to = '/',
+  link = true,
 }: BrandMarkProps) {
   const isLight = variant === 'light'
   const sizes = sizeMap[size]
 
-  return (
+  const mark = (
     <div className="inline-flex shrink-0 items-center gap-3">
       <span
         className={`relative grid ${sizes.mark} shrink-0 place-items-center overflow-hidden rounded-[0.85rem] font-semibold tracking-tight ${
@@ -49,5 +56,17 @@ export function BrandMark({
         </div>
       ) : null}
     </div>
+  )
+
+  if (!link) return mark
+
+  return (
+    <Link
+      to={to}
+      className="inline-flex rounded-[0.85rem] outline-offset-4 transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-400"
+      aria-label="MMS home — view journals"
+    >
+      {mark}
+    </Link>
   )
 }
