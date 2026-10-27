@@ -1,0 +1,83 @@
+International Journal of Digital Health (IJDH)
+Aims & Scope
+Health systems are being rebuilt around data, connectivity, and remote care. Electronic health records, telemedicine platforms, wearable sensors, mobile diagnostics, and clinical decision-support models now sit beside bedside practice, promising earlier detection, continuity across settings, and more personalized treatment. Those capabilities remain uneven. Design-time barriers include fragmented data models, weak interoperability across hospitals and devices, scarce labeled clinical datasets, and algorithms that fail to generalize across populations, devices, and care pathways. At runtime, digital health services must stay synchronized with evolving guidelines, integrate with legacy hospital information systems, and fail safely when connectivity, sensors, or models degrade. Privacy law, consent, cybersecurity, and the need for clinical validation further constrain what can be deployed at scale. Progress therefore depends on methods that are clinically meaningful, technically robust, and trustworthy enough for high-stakes patient care.
+The International Journal of Digital Health (IJDH) is a peer-reviewed international journal that aims to provide a high-quality platform for the dissemination of innovative research in digital health. The journal focuses on emerging theories, algorithms, systems, and applications that address the evolving challenges of connected care, health data, and intelligent clinical support. IJDH welcomes original clinical and computational studies, system implementations, validation reports, datasets, surveys, and practice-oriented case studies that demonstrate safe, equitable, and interoperable digital health. The journal seeks to promote interdisciplinary collaboration among researchers, engineers, and practitioners in medicine, nursing, public health, biomedical informatics, engineering, and health services research, while fostering the development of interpretable, secure, and clinically useful digital health solutions. By encouraging both theoretical advancements and practical implementations, the journal contributes to shaping the future of connected, patient-centered, and evidence-based care.
+Topics
+- Electronic health records, interoperability, and health information exchange
+- Telemedicine, remote monitoring, and virtual care delivery
+- Wearable, mobile, and ambient sensing for health assessment
+- Clinical decision support and medical artificial intelligence
+- Digital therapeutics, rehabilitation, and personalized intervention
+- Health data standards, FHIR workflows, and semantic integration
+- Privacy, consent, cybersecurity, and trustworthy digital health
+- Equity, accessibility, and digital inclusion in care delivery
+- Public health informatics, surveillance, and population digital health
+- Human factors, clinician workflow, and patient engagement technologies
+- Regulatory science, clinical validation, and real-world evidence
+- Benchmarks, datasets, and evaluation methods for digital health systems
+Publication Frequency
+IJDH is published continuously throughout the year, with articles appearing online immediately after acceptance and production.
+Ownership
+The journal is owned by Sample
+.
+Author Fees
+For information regarding publication fees and waiver policies, please refer to 
+Article Processing Charge (APC)
+. 
+Copyright & Licensing
+Articles published in 
+IJDH
+ will be Open-Access articles distributed under the terms and conditions of the 
+Creative Commons Attribution 4.0 International
+ (CC BY)
+. Under this license, author(s) retain ownership of the copyright for their article, but authors allow anyone to download, reuse, reprint, distribute, and/or copy articles published in 
+IJDH
+, so long as the original author(s) and source are cited.
+Access Policy
+All articles published in this journal are freely available to readers worldwide immediately upon publication. There are no subscription charges or pay-per-view 
+fees. Readers may read, download, copy, distribute, print, search, or link to the full texts of the articles, or use them for any other lawful purpose, without asking prior permission from the publisher or the author.
+Editorial Board
+The Journal is guided by an Editorial Board consisting of recognized experts in the field. For the complete list of Editorial Board members, please refer to 
+Editorial Board
+.
+Peer Review
+The journal adheres to rigorous peer review and undergoes 
+single-blind
+ peer review. For more details, please refer to 
+Editorial Process
+ and 
+Peer Review Policy
+.
+Editorial Process
+All manuscripts submitted to 
+IJDH
+ should adhere to the journal's 
+Editorial Process
+.
+Plagiarism
+Plagiarism detection is performed at 
+the Journal using the Turnitin
+ tool. This web-based tool is employed in the editorial process to identify potential text plagiarism. It's important to note that while 
+Turnitin
+ can identify matching text, it cannot independently determine whether plagiarism has occurred. Manual examination of the matching text is still necessary, and judgment must be exercised to ascertain the presence or absence of plagiarism. The similarity report might be sent to the author for revision whenever needed.
+Publication Ethics Statement
+IJDH
+ is responsible for implementing rigorous peer review and strict ethical policies and standards to ensure that high quality scientific work is added to the field of scholarly publishing. 
+IJDH
+ takes such publishing ethics issues very seriously, and our editors are trained to enforce 
+COPE's Core Practices
+ and 
+Guidelines
+, with a zero-tolerance policy for plagiarism, data falsification, and other behaviours. To verify the originality of content submitted to our journals, we use 
+Turnitin
+ tool
+ 
+Similarity Check to check submissions against previous publications.
+Advertising
+The journal does not accept any commercial product advertisements until policy changes otherwise.
+Direct Marketing
+Journal propagation has been done through the journal website and distribution of an introduction pamphlet. Invitations to submit a manuscript are usually targeted towards presenters at conferences, seminars, or workshops related to the journal's aims and scope.
+Contact
+Please visit 
+Editorial Office
+ for details about different queries.

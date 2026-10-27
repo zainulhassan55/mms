@@ -138,9 +138,11 @@ export function useAuth() {
 
 export function homePathForRole(role: AppRole) {
   if (role === 'office' || role === 'editor') return '/editor/queue'
+  if (role === 'journal_manager') return '/manager/journals'
+  if (role === 'copyeditor') return '/copyedit/queue'
   if (role === 'reviewer') return '/reviewer/invitations'
   if (role === 'production') return '/production/queue'
-  if (role === 'admin') return '/admin/analytics'
+  if (role === 'admin') return '/editor/queue'
   return '/author/dashboard'
 }
 

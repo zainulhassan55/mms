@@ -1,0 +1,260 @@
+Publication Ethics
+The 
+International Journal of Digital Health (IJDH)
+ is committed to upholding the highest standards of publication ethics, adhering to the Core Practices of the Committee on Publication Ethics (COPE), the International Committee of Medical Journal Editors (ICMJE) guidelines, and other international standards. This policy governs all authors, editors, reviewers, and readers, ensuring integrity, transparency, and quality in scholarly publishing. The following sections outline 
+IJDH
+'s ethical policies, which are publicly accessible on this website to promote trust and accountability.
+1. Authorship and 
+Contributorship
+Authorship is based on the ICMJE criteria, requiring:
+Substantial contributions to the conception, design, data acquisition, analysis, or interpretation.
+Drafting or critically revising the manuscript for important intellectual content.
+Final approval of the version to be published.
+Agreement to be accountable for all aspects of the work.
+Gift, guest, or ghost authorship is strictly prohibited. Changes to authorship post-submission (e.g., addition or removal of authors) require written justification and consent from all co-authors, submitted to the Editorial Office at 
+office@sample.org
+. Disputes over authorship will be resolved transparently, following 
+COPE guidelines
+.
+2. Complaints and Appeals
+IJDH
+ maintains a transparent and fair process for addressing complaints and appeals, ensuring accountability and adherence to 
+COPE guidelines
+:
+Complaints: Concerns regarding editorial processes, publication ethics, or journal operations should be submitted in writing to 
+ethics@sample.org
+. The Editorial Board will investigate promptly, typically within 30 days, ensuring confidentiality and fairness. Complainants will receive updates on the investigation's progress and a final resolution report.
+Appeals: Authors may appeal editorial decisions (e.g., manuscript rejections) by submitting a detailed rationale to the Editor-in-Chief within 30 
+days of the decision. Appeals are reviewed by an independent editorial panel, and outcomes are communicated promptly, typically within 14 days.
+All complaints and appeals are handled confidentially, with records maintained for transparency and future reference.
+3. Conflicts of Interest
+All individuals involved in the publication process—authors, editors, and reviewers—must disclose any financial, personal, or professional relationships that could influence the research, its evaluation, or publication. Authors must include a 
+conflict of interest
+ statement in their manuscript, even if no conflicts exist (e.g., "The authors declare no conflicts of interest"). Editors and reviewers with conflicts must recuse themselves from handling the manuscript. Non-disclosure of conflicts may lead to rejection, retraction, or sanctions, per 
+COPE guidelines
+.
+Guest Editors of Special Topics: Guest Editors are subject to the same conflict of interest requirements as handling editors. Guest Editors must not make editorial decisions on manuscripts submitted by themselves, their close collaborators, or anyone with whom they have a financial, personal, or professional relationship that could compromise impartiality. Such manuscripts must be transferred to an independent editor — either the Editor-in-Chief or a designated Associate Editor — for handling. Guest Editors who submit manuscripts to their own Special Topic must declare this at the time of submission; their manuscripts will be processed through the standard editorial workflow with no involvement from the Guest Editor in any stage of peer review or decision-making.
+4. Data Sharing and Reproducibility
+IJDH
+ promotes transparency and reproducibility through adherence to the 
+FAIR principles (Findable, Accessible, Interoperable, Reusable)
+:
+Manuscripts must describe methods and data in sufficient detail to enable replication by other researchers.
+Authors are encouraged to deposit raw data in public repositories (e.g., 
+Dryad
+, 
+Zenodo
+) prior to submission, unless restricted by ethical or legal considerations. A Data Availability Statement must be included in the manuscript, specifying how and where data can be accessed.
+If public sharing is not feasible, data must be available to editors and reviewers upon request during peer review.
+Authors must retain raw data and associated metadata for at least five years post-publication and provide access upon reasonable request.
+Fabrication, falsification, or manipulation of data (e.g., image alteration) is strictly prohibited and will result in rejection, retraction, or sanctions.
+5. Ethical Oversight
+Human Research
+Research involving human participants, identifiable data, primary cells, or tissue must comply with the 
+Declaration of Helsinki
+. Manuscripts must include:
+The name, approval number, and date of the institutional or national ethics committee granting approval.
+A statement confirming written informed consent from all participants or their legal guardians.
+Details of any exemption from ethics approval, including the granting committee's name and rationale.
+IJDH
+ prioritizes patient privacy. Editors may request additional documentation (e.g., signed consent forms) for manuscripts involving identifiable participants, even if consent was previously obtained.
+Animal Research
+Studies involving animals must adhere to international, national, and institutional guidelines, such as the 
+U.K. Animals (Scientific Procedures) Act 1986
+ and associated guidelines. Manuscripts must include:
+The name, approval number, and date of the ethics committee approving the study.
+A detailed description of measures to minimize animal suffering, consistent with the 
+ARRIVE guidelines
+.
+Details of any exemption from ethics approval, including the granting committee's rationale.
+Editors may reject manuscripts if concerns arise regarding animal welfare or compliance with ethical standards.
+Cell Lines
+Research involving cell lines must specify their origin and authentication status (e.g., STR profiling for human cell lines) in the Methods section. For established cell lines, provide references to published papers or commercial sources. For novel or human-derived cell lines, include:
+Ethics approval from an institutional review board or ethics committee.
+Confirmation of written informed consent for human-derived cell lines.
+Editorial checks during peer review ensure compliance with ethical standards for cell line research.
+6. Intellectual Property
+IJDH
+ is a fully open access journal. All published articles are made freely available to all readers under the 
+Creative Commons Attribution (CC-BY 4.0) license
+. Under this license, authors retain copyright of their work while granting readers the right to freely read, download, share, adapt, and reuse the content, provided appropriate credit is given to the original publication. Authors are responsible for:
+Ensuring the originality of their work and properly citing all sources.
+Obtaining permissions for reusing third-party material (e.g., figures, tables, text), with clear attribution in the manuscript. Reuse of published articles is governed by the CC-BY 4.0 license.
+Citing and clearly distinguishing their own previously published work, securing copyright permissions if significant reuse is involved.
+Avoiding submission of manuscripts that are under consideration elsewhere or have been published in any form, including translations or 
+unextended
+ conference papers.
+Violations of intellectual property rights will result in rejection or retraction.
+7. Plagiarism and Redundant Publication
+Plagiarism, including text recycling, image duplication, or unattributed use of others' ideas, is strictly prohibited. All submissions are screened using 
+Crossref
+ Similarity Check (
+iThenticate
+)
+. Detected plagiarism will result in immediate rejection (if unpublished) or retraction (if published), with notification to the authors' institutions if warranted.
+Redundant or duplicate publications are not accepted. Authors must:
+Submit original, unpublished manuscripts not under consideration elsewhere.
+Clearly cite and differentiate any reused content from their own prior work, ensuring it adds significant new value.
+Obtain copyright permissions for significant reuse of their own or others' material.
+Avoid "salami-slicing" (splitting a single study into multiple submissions to different journals or over time).
+Extensions of conference papers are acceptable only if they include substantial new contributions and are properly cited.
+Preprints: 
+IJDH
+ welcomes submissions of manuscripts previously posted to recognized preprint servers (e.g., 
+arXiv
+, 
+bioRxiv
+, SSRN, 
+TechRxiv
+). Upon acceptance, authors are encouraged to update the preprint record with a link to the published version. Posting an updated preprint after acceptance is permitted, provided the posted version is clearly identified as an author-accepted manuscript and not the final published version. Preprint posting does not constitute prior publication and will not be treated as duplicate submission.
+8. Post-Publication Discussions and Corrections
+IJDH
+ encourages responsible post-publication engagement to foster scientific discourse and maintain publication integrity:
+Corrections: Authors must promptly notify 
+office@sample.org
+ of errors or inaccuracies in published articles. Minor errors will be addressed via errata, linked to the original article, while significant errors may warrant a corrigendum.
+Retractions: Articles may be retracted due to major errors, ethical breaches, or research misconduct, following 
+COPE guidelines
+. The corresponding author is notified prior to retraction and given an opportunity to respond, except in cases where immediate action is required to protect the integrity of the scientific record. Retracted articles remain accessible on the journal website with a prominent "RETRACTED" watermark on each page of the article, and a linked retraction notice is published as a separate citable record. The original DOI continues to resolve to the retracted article to preserve the integrity of the scholarly record. Retraction notices specify the 
+reason for retraction and are clearly dated. Indexing databases are notified promptly so that retraction status is reflected across all relevant platforms.
+Discussions: Readers may submit letters to the editor or comments via the journal's online platform for scholarly debate and will be reviewed for relevance, accuracy, and appropriateness before publication.
+Removal of Published Content: A paper will only be completely removed from Sample's website and relevant indexing databases in very exceptional circumstances, such as: (1) The removal has been requested by an order from a court or government authority; (2) The content poses a threat to personal privacy or the legal rights of other parties, which cannot be adequately addressed through editorial notices or updates; (3) The research was conducted or published unlawfully, and its ongoing presence may lead to potential legal issues or privacy concerns; (4) Although marked as retracted, the content poses risks to the general public.
+Post-publication updates are archived and clearly linked to the original article to ensure transparency.
+9. Misconduct and Investigations
+IJDH
+ strictly prohibits research and publication misconduct, including:
+Data fabrication or falsification, including image manipulation.
+Plagiarism or improper authorship practices (e.g., ghost, guest, or gift authorship).
+Ethical violations in human or animal research.
+Duplicate, redundant, or simultaneous submissions to multiple journals.
+Suspected misconduct triggers a thorough investigation following 
+COPE guidelines
+. Authors may be requested to provide raw data, source files, or clarifications. Investigations may involve consultation with the authors' institutions or other relevant bodies. Outcomes may include:
+Rejection of manuscripts under consideration.
+Retraction of published articles, with a published retraction notice.
+Temporary submission bans (1–3 years) for offending authors.
+Prohibition from serving as an editor or reviewer for 
+IJDH
+.
+Authors will be notified of the investigation process and outcomes to ensure fairness and transparency.
+10. Use of Generative AI
+IJDH
+ recognizes the growing use of generative artificial intelligence (AI) and AI-assisted technologies in research and publication processes. To ensure transparency, integrity, and accountability, the following policies apply to authors. This policy is effective as of 
+January 1, 2026
+, and applies to all manuscripts submitted on or after that date.
+Scientific Writing
+Generative AI and AI-assisted technologies may be used to enhance the clarity, readability, and language quality of manuscripts, but only under strict human oversight. Authors must:
+Critically review and edit AI-generated content to ensure accuracy, completeness, and impartiality, as such content may be incorrect, incomplete, or biased.
+Disclose the use of AI tools in the manuscript's Acknowledgements section or a dedicated AI Use Statement, specifying the tool (e.g., ChatGPT), its role (e.g., language polishing), and ensuring compliance with the tool's terms of use.
+Remain fully responsible and accountable for the content, originality, and integrity of the manuscript.
+Not rely on generative AI tools to identify, generate, or verify bibliographic references, as such tools are known to produce fabricated citations. All references must be independently verified by the authors against primary sources.
+Generative AI tools cannot be listed as authors or co-authors, as they do not meet 
+ICMJE authorship criteria
+. Human authors must approve the final manuscript, agree to its submission, and address any questions regarding its accuracy or integrity.
+Figures, Images, and Artwork
+The use of generative AI or AI-assisted tools to create, modify, or manipulate figures, images, or artwork in submitted manuscripts is prohibited, except in specific cases. Prohibited actions include enhancing, obscuring, moving, removing, or adding 
+elements within an image or figure. Standard adjustments (e.g., brightness, contrast, color balance) are permitted, provided they do not alter the original information. Manuscripts may be screened using image forensics tools to detect irregularities.
+Exceptions are allowed when AI use is integral to the research design or methods (e.g., AI-assisted imaging in biomedical research, or AI-generated synthetic images used as research data). In such cases, authors must:
+Provide a detailed, reproducible description in the Methods section, including the AI tool's name, developer or manufacturer, and application details.
+Comply with the tool's usage policies and ensure proper attribution of AI-generated content.
+Submit pre-AI-adjusted images or composite raw images for editorial review, if requested.
+The use of AI to produce artwork, such as graphical abstracts, is not permitted. For cover art, AI use may be allowed in exceptional cases with prior approval from the journal editor and publisher, provided authors secure all necessary rights and ensure proper attribution.
+Research Data and Experimental Materials
+When generative AI tools are used to create synthetic data, training datasets, simulation inputs, or other experimental materials as an integral part of the research methodology, authors must:
+Disclose all AI tools used for data generation in a dedicated AI Use Statement, specifying the tool name, developer or manufacturer, and its specific role in the research (e.g., synthetic image generation for dataset augmentation).
+Provide a detailed, reproducible description of the data generation process in the Methods section, including prompt strategies (where applicable) and any post-generation curation, filtering, or annotation steps applied by human authors.
+Clearly distinguish AI-generated research data from real-world or experimentally collected data throughout the manuscript, including in dataset descriptions, tables, and figures.
+Comply with the terms of use of all AI tools employed and ensure that the use of AI-generated data does not introduce fabrication, misrepresentation, or bias that could compromise the validity of the research findings.
+Retain full responsibility for the quality, accuracy, representativeness, and ethical appropriateness of all AI-generated materials used in the study.
+AI-generated data used solely as training or validation inputs are considered research materials and are subject to the same standards of rigor, transparency, and reproducibility as experimentally collected data. Such data must not be presented as observational or real-world evidence unless explicitly validated against ground-truth sources.
+Peer Review
+Reviewers are prohibited from uploading or inputting any manuscript content into generative AI systems for the purpose of generating review comments, summaries, or assessments. Manuscript materials shared with reviewers are strictly confidential and must not be disclosed to third-party AI platforms, regardless of the platform's stated data retention or privacy policies. Reviewers who use AI tools solely to improve the clarity or grammar of their own written comments must ensure that no manuscript content is transmitted to external systems in the process. Violation of this obligation constitutes a breach of peer review confidentiality and will be treated in accordance with 
+COPE guidelines
+.
+Editorial Use of AI
+Editors must not input unpublished manuscript content, reviewer identities, reviewer reports, or any confidential submission information into generative AI systems at any stage of the editorial process. AI-assisted tools may be used to support administrative tasks such as plagiarism detection, image forensics, and reviewer recommendation, but their outputs must be treated as advisory only and independently verified by a human editor before any action is taken. Editorial decisions — including acceptance, revision requests, and rejection — must be made exclusively by human editors on the basis of their own assessment; generative AI must not be used to draft decision letters, interpret peer review reports, or evaluate the scientific merit of submissions.
+Editorial Oversight
+Editors and reviewers may request documentation of AI tool usage (e.g., output logs, generation prompts, or curation records) during peer review to verify compliance 
+with this policy. Undisclosed or inappropriate AI use—including generating fabricated data, producing unattributed text, manipulating images, or misrepresenting AI-generated materials as real-world observations—is considered misconduct and may lead to rejection, retraction, or sanctions, per 
+COPE guidelines
+.
+Policy Updates
+This policy will be reviewed and updated periodically to reflect developments in AI technology and evolving best practices in academic publishing. The effective date of the current version is stated at the opening of this section. Authors are advised to consult the most current version of this policy at the time of manuscript submission. Prior versions of this policy remain applicable to manuscripts submitted before the effective date of any subsequent revision.
+11. Peer Review Ethics
+IJDH
+ employs a rigorous, fair, and confidential peer review process to ensure the quality and integrity of published research. Reviewers must:
+Provide objective, constructive, and timely feedback without personal bias.
+Maintain confidentiality of the manuscript and its content, sharing it only with authorized editorial staff.
+Declare any conflicts of interest and recuse themselves if necessary.
+Alert the Editorial Office to potential ethical issues, such as plagiarism, data concerns, or undisclosed AI use.
+Use of Generative AI: Disclose any use of generative AI tools (e.g., for drafting review comments) to the Editorial Office at 
+ethics@sample.org
+. Reviewers must not rely on AI to generate substantive review content, as reviews must reflect their own expertise and critical judgment. Undisclosed or inappropriate AI use may result in exclusion from future reviews.
+Editors oversee the peer review process, ensuring impartiality and compliance with ethical standards. Suspected ethical violations, including misuse of AI, identified during peer review will be investigated promptly.
+12. Editorial Independence
+IJDH
+ upholds editorial independence, ensuring that editorial decisions are based solely on the quality, originality, and scientific merit of the manuscript, free from 
+commercial, political, or external influences. If generative AI tools are used in editorial processes (e.g., for initial manuscript screening or language checks), their use must be transparent, documented, and subordinate to human editorial judgment. Editors remain fully accountable for all decisions, and AI tools must not influence outcomes in a manner that compromises impartiality. The Editorial Board operates with integrity, guided by 
+COPE's principles of editorial independence
+.
+13. Process for Identification and Handling of Research Misconduct Allegations
+This section applies across 
+all Sample journals
+ (authors, editors, reviewers, and other stakeholders) and follows 
+COPE
+ guidance
+ to identify, prevent, and handle research misconduct.
+Definitions & Coverage
+For definitions and scope (e.g., plagiarism, citation manipulation, data falsification/fabrication, duplicate submission/publication, inappropriate authorship, undisclosed competing interests), see Sections 
+7
+ (Plagiarism and Redundant Publication) and 
+9
+ (Misconduct and Investigations).
+Workflow (Concise)
+Receipt & Logging:
+ Allegations may come from readers, reviewers, editors, institutions/funders, or anonymous whistleblowers; all are received and handled confidentially.
+Preliminary Assessment:
+ Editors assess credibility and severity. Clearly unsubstantiated or vague reports may be declined with a brief written explanation; credible cases proceed to formal investigation.
+Formal Investigation:
+ Led by an editorial committee or an 
+independent panel
+; the corresponding (and relevant co
+-)authors
+ are notified and invited to respond. Editors may request raw data/original files/ethics approvals and consult external experts or the authors' institutions/funders.
+Decisions & Actions:
+ If misconduct is confirmed, proportionate actions may include 
+retraction
+/
+correction
+/
+expression of concern
+ (see Section 
+8
+), institutional/funder notification, and 
+submission restrictions
+ (typically 
+1–3 years
+). If not established, the case is closed and (where possible) the complainant is informed.
+Record-Keeping & Transparency:
+ Outcomes (e.g., retraction/correction notices) are documented and clearly linked to the article of record; see Section 
+8
+ for post-publication mechanisms.
+Responsibilities (Summary)
+Editors:
+ implement screening and peer review; act promptly and fairly; keep records. 
+Authors:
+ ensure integrity and traceability of data; disclose conflicts/approvals. 
+Reviewers:
+ report suspected misconduct identified during review. 
+Publisher:
+ provide policies, tools, and support to ensure due process.
+Appeals
+Authors may appeal within 
+30 days
+; appeals are reviewed by an independent panel. Timelines and requirements align with Section 
+2
+ (Complaints and Appeals).
+Contact
+For questions, concerns, or reports regarding publication ethics, please contact the Editorial Office at 
+ethics@sample.org
+.

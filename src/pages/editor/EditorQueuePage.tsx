@@ -12,21 +12,51 @@ import {
   type ApiManuscript,
 } from '../../lib/manuscripts'
 
-const screeningStatuses = ['submitted', 'formatting_requested'] as const
-const activeStatuses = ['under_review', 'revision_requested'] as const
-const handedOffStatuses = [
-  'accepted',
-  'in_production',
-  'proof_sent',
-  'ready_for_publication',
-  'published',
-  'rejected',
-] as const
+type StageId =
+  | 'all'
+  | 'submission'
+  | 'review'
+  | 'copyediting'
+  | 'production'
+  | 'published'
+  | 'declined'
+
+const STAGES: Array<{ id: StageId; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'submission', label: 'Submission' },
+  { id: 'review', label: 'Review' },
+  { id: 'copyediting', label: 'Copyediting' },
+  { id: 'production', label: 'Production' },
+  { id: 'published', label: 'Published' },
+  { id: 'declined', label: 'Declined' },
+]
+
+function stageOf(status: string): StageId {
+  if (status === 'submitted' || status === 'formatting_requested')
+    return 'submission'
+  if (
+    status === 'under_review' ||
+    status === 'revision_requested' ||
+    status === 'revision_submitted'
+  )
+    return 'review'
+  if (status === 'copyediting' || status === 'accepted') return 'copyediting'
+  if (
+    status === 'in_production' ||
+    status === 'proof_sent' ||
+    status === 'ready_for_publication'
+  )
+    return 'production'
+  if (status === 'published') return 'published'
+  if (status === 'rejected') return 'declined'
+  return 'all'
+}
 
 export function EditorQueuePage() {
   const [manuscripts, setManuscripts] = useState<ApiManuscript[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [stage, setStage] = useState<StageId>('all')
 
   useEffect(() => {
     let cancelled = false
@@ -56,27 +86,35 @@ export function EditorQueuePage() {
       reviewCount: item.reviewCount ?? 0,
       openInviteCount: item.openInviteCount ?? 0,
       awaitingDecision: Boolean(item.awaitingDecision),
+      stage: stageOf(item.status),
     }))
   }, [manuscripts])
 
-  const screening = enriched.filter((item) =>
-    (screeningStatuses as readonly string[]).includes(item.status),
-  )
+  const counts = useMemo(() => {
+    const map: Record<StageId, number> = {
+      all: enriched.length,
+      submission: 0,
+      review: 0,
+      copyediting: 0,
+      production: 0,
+      published: 0,
+      declined: 0,
+    }
+    for (const item of enriched) {
+      if (item.stage !== 'all') map[item.stage] += 1
+    }
+    return map
+  }, [enriched])
+
   const needsDecision = enriched.filter((item) => item.awaitingDecision)
-  const active = enriched.filter(
-    (item) =>
-      (activeStatuses as readonly string[]).includes(item.status) &&
-      !item.awaitingDecision,
-  )
-  const handedOff = enriched.filter((item) =>
-    (handedOffStatuses as readonly string[]).includes(item.status),
-  )
+  const filtered =
+    stage === 'all' ? enriched : enriched.filter((item) => item.stage === stage)
 
   return (
     <div className="page-stack animate-rise">
       <PageHeader
-        title="Editorial queue"
-        description="Screen new submissions, invite reviewers, then record Accept / Revision / Reject."
+        title="Submissions"
+        description="OJS-style editorial queue by workflow stage. Screen, assign editors, invite reviewers, and decide."
       />
 
       {error ? (
@@ -85,83 +123,94 @@ export function EditorQueuePage() {
         </p>
       ) : null}
 
-      {screening.length > 0 ? (
-        <Notice tone="info" title="Screening needed">
-          {screening.length} manuscript
-          {screening.length === 1 ? '' : 's'} awaiting initial screening.
+      <nav
+        className="overflow-x-auto border-b border-line"
+        aria-label="Workflow stages"
+      >
+        <ul className="flex gap-1 pb-px">
+          {STAGES.map((item) => {
+            const active = stage === item.id
+            return (
+              <li key={item.id} className="shrink-0">
+                <button
+                  type="button"
+                  className={`border-b-2 px-3 py-2.5 text-sm font-semibold transition ${
+                    active
+                      ? 'border-signal-600 text-signal-800'
+                      : 'border-transparent text-ink-500 hover:text-ink-800'
+                  }`}
+                  onClick={() => setStage(item.id)}
+                >
+                  {item.label}
+                  <span className="ml-1.5 text-xs font-medium text-ink-400">
+                    {counts[item.id]}
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      </nav>
+
+      {needsDecision.length > 0 && (stage === 'all' || stage === 'review') ? (
+        <Notice tone="info" title="Decision needed">
+          {needsDecision.length} manuscript
+          {needsDecision.length === 1 ? '' : 's'} have reviews ready for an
+          editorial decision.
         </Notice>
       ) : null}
 
+      {needsDecision.length > 0 && (stage === 'all' || stage === 'review') ? (
+        <DataPanel
+          title="Awaiting decision"
+          description="Reviews complete — record Accept, Revision, or Reject."
+          count={needsDecision.length}
+          accent
+          size="md"
+          scroll
+        >
+          <QueueList items={needsDecision} highlight actionLabel="Decide" />
+        </DataPanel>
+      ) : null}
+
       <DataPanel
-        title="Awaiting screening"
-        description="New submissions that need initial screening."
-        count={loading ? undefined : screening.length}
-        size="md"
-        accent={screening.length > 0}
-        scroll={!loading && screening.length > 0}
+        title={
+          STAGES.find((s) => s.id === stage)?.label ?? 'Submissions'
+        }
+        description={
+          stage === 'submission'
+            ? 'New submissions awaiting screening.'
+            : stage === 'review'
+              ? 'Peer review and author revisions.'
+              : stage === 'copyediting'
+                ? 'Accepted papers in copyediting.'
+                : stage === 'production'
+                  ? 'Layout, proofs, and issue scheduling.'
+                  : 'All manuscripts in your editorial scope.'
+        }
+        count={loading ? undefined : filtered.length}
+        size="lg"
+        scroll={!loading && filtered.length > 0}
       >
         {loading ? (
           <EmptyState title="Loading">Loading queue…</EmptyState>
-        ) : screening.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <EmptyState title="No manuscripts">
-            There are no manuscripts in this queue.
-          </EmptyState>
-        ) : (
-          <QueueList items={screening} actionLabel="Screen" />
-        )}
-      </DataPanel>
-
-      <DataPanel
-        title="Decision"
-        description="Manuscripts ready for editorial decision."
-        count={loading ? undefined : needsDecision.length}
-        accent={needsDecision.length > 0}
-        size="md"
-        scroll={!loading && needsDecision.length > 0}
-      >
-        {loading ? (
-          <EmptyState title="Loading">Loading…</EmptyState>
-        ) : needsDecision.length === 0 ? (
-          <EmptyState title="No manuscripts">
-            There are no manuscripts in this queue.
+            There are no manuscripts in this stage.
           </EmptyState>
         ) : (
           <QueueList
-            items={needsDecision}
-            highlight
-            actionLabel="Record decision"
+            items={filtered}
+            actionLabel={
+              stage === 'submission'
+                ? 'Screen'
+                : stage === 'review'
+                  ? 'Open'
+                  : 'Open'
+            }
           />
         )}
       </DataPanel>
-
-      <DataPanel
-        title="Peer review"
-        description="Manuscripts with pending or completed peer reviews."
-        count={loading ? undefined : active.length}
-        size="lg"
-        scroll={!loading && active.length > 0}
-      >
-        {loading ? (
-          <EmptyState title="Loading">Loading…</EmptyState>
-        ) : active.length === 0 ? (
-          <EmptyState title="No manuscripts">
-            There are no manuscripts in this queue.
-          </EmptyState>
-        ) : (
-          <QueueList items={active} />
-        )}
-      </DataPanel>
-
-      {handedOff.length > 0 ? (
-        <DataPanel
-          title="Handed off"
-          description="Accepted, in production, published, or rejected."
-          count={handedOff.length}
-          size="md"
-        >
-          <QueueList items={handedOff} />
-        </DataPanel>
-      ) : null}
     </div>
   )
 }
@@ -180,6 +229,7 @@ function QueueList({
     openInviteCount: number
     awaitingDecision: boolean
     submittedAt?: string | null
+    assignedEditor?: string
   }>
   highlight?: boolean
   actionLabel?: string
@@ -202,6 +252,9 @@ function QueueList({
                 {item.title}
               </p>
               <p className="mt-0.5 text-sm text-ink-500">
+                {item.assignedEditor
+                  ? `Editor: ${item.assignedEditor} · `
+                  : 'Unassigned · '}
                 {item.submittedAt ? `Submitted ${item.submittedAt} · ` : ''}
                 {item.reviewCount > 0
                   ? `${item.reviewCount} review${item.reviewCount === 1 ? '' : 's'}`

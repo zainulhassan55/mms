@@ -8,6 +8,12 @@ export type JournalOption = {
   name: string
   issn?: string | null
   description?: string | null
+  sections?: Array<{
+    id: string
+    code: string
+    title: string
+    description?: string | null
+  }>
 }
 
 export function JournalStep({
@@ -21,11 +27,14 @@ export function JournalStep({
   journals: JournalOption[]
   loading?: boolean
 }) {
+  const selectedJournal = journals.find((j) => j.id === draft.journalId)
+  const sections = selectedJournal?.sections ?? []
+
   return (
     <div className="space-y-6">
       <StepIntro
-        title="Choose journal and article type"
-        description="Select where this manuscript should be considered. You can change this before final submit."
+        title="Start submission"
+        description="OJS Start step: choose the journal, section, and article type before entering metadata."
       />
 
       <div className="space-y-3">
@@ -46,7 +55,12 @@ export function JournalStep({
                 <button
                   key={journal.id}
                   type="button"
-                  onClick={() => onChange({ journalId: journal.id })}
+                  onClick={() =>
+                    onChange({
+                      journalId: journal.id,
+                      sectionId: journal.sections?.[0]?.id ?? '',
+                    })
+                  }
                   className={`rounded-[var(--radius-lg)] border p-4 text-left transition ${
                     selected
                       ? 'border-signal-500 bg-signal-50 shadow-[var(--shadow-soft)]'
@@ -79,6 +93,24 @@ export function JournalStep({
           </div>
         )}
       </div>
+
+      {sections.length > 0 ? (
+        <div className="field">
+          <label htmlFor="sectionId">Journal section</label>
+          <select
+            id="sectionId"
+            value={draft.sectionId}
+            onChange={(e) => onChange({ sectionId: e.target.value })}
+          >
+            <option value="">Select a section…</option>
+            {sections.map((section) => (
+              <option key={section.id} value={section.id}>
+                {section.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="field">
@@ -124,17 +156,17 @@ export function DetailsStep({
   return (
     <div className="space-y-6">
       <StepIntro
-        title="Manuscript details"
-        description="Provide the core metadata reviewers and editors will see first."
+        title="Enter metadata"
+        description="OJS Metadata step: title, abstract, keywords, and optional comments for the editor."
       />
 
       <div className="field">
-        <label htmlFor="title">Title</label>
+        <label htmlFor="title">Prefix / Title</label>
         <input
           id="title"
           value={draft.title}
           onChange={(e) => onChange({ title: e.target.value })}
-          placeholder="Enter the full manuscript title"
+          placeholder="Full manuscript title"
           required
         />
       </div>
@@ -146,10 +178,12 @@ export function DetailsStep({
           rows={8}
           value={draft.abstract}
           onChange={(e) => onChange({ abstract: e.target.value })}
-          placeholder="Summarize objectives, methods, and key findings"
+          placeholder="Summarize objectives, methods, and key findings (typically 200–500 words)"
           className="min-h-40 resize-y"
         />
-        <p className="text-xs text-ink-300">{draft.abstract.trim().split(/\s+/).filter(Boolean).length} words</p>
+        <p className="text-xs text-ink-300">
+          {draft.abstract.trim().split(/\s+/).filter(Boolean).length} words
+        </p>
       </div>
 
       <div className="field">
@@ -158,7 +192,22 @@ export function DetailsStep({
           id="keywords"
           value={draft.keywords}
           onChange={(e) => onChange({ keywords: e.target.value })}
-          placeholder="Comma-separated, e.g. flooding, mesh refinement, coastal modeling"
+          placeholder="Comma-separated, e.g. digital health, FHIR, telemedicine"
+        />
+        <p className="text-xs text-ink-400">
+          Enter at least three keywords, separated by commas.
+        </p>
+      </div>
+
+      <div className="field">
+        <label htmlFor="commentsForEditor">Comments for the editor (optional)</label>
+        <textarea
+          id="commentsForEditor"
+          rows={4}
+          value={draft.commentsForEditor}
+          onChange={(e) => onChange({ commentsForEditor: e.target.value })}
+          placeholder="Cover note, suggested reviewers, related submissions, or suitability notes"
+          className="resize-y"
         />
       </div>
     </div>
@@ -201,6 +250,8 @@ export function AuthorsStep({
           name: '',
           email: '',
           affiliation: '',
+          country: '',
+          orcid: '',
           corresponding: false,
         },
       ],
@@ -228,8 +279,8 @@ export function AuthorsStep({
   return (
     <div className="space-y-6">
       <StepIntro
-        title="Author list"
-        description="Order authors as they should appear. Mark one corresponding author."
+        title="Add contributors"
+        description="OJS Contributors step: list authors in publication order. Mark one corresponding contact."
       />
 
       <div className="space-y-3">
@@ -237,7 +288,7 @@ export function AuthorsStep({
           <div key={author.id} className="surface p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-ink-800">
-                Author {index + 1}
+                Contributor {index + 1}
               </p>
               <div className="flex items-center gap-2">
                 <button
@@ -269,7 +320,7 @@ export function AuthorsStep({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="field">
-                <label htmlFor={`${author.id}-name`}>Full name</label>
+                <label htmlFor={`${author.id}-name`}>Given / family name</label>
                 <input
                   id={`${author.id}-name`}
                   value={author.name}
@@ -295,7 +346,29 @@ export function AuthorsStep({
                   onChange={(e) =>
                     updateAuthor(author.id, { affiliation: e.target.value })
                   }
-                  placeholder="Department, Institution, Country"
+                  placeholder="Department, Institution"
+                />
+              </div>
+              <div className="field">
+                <label htmlFor={`${author.id}-country`}>Country</label>
+                <input
+                  id={`${author.id}-country`}
+                  value={author.country}
+                  onChange={(e) =>
+                    updateAuthor(author.id, { country: e.target.value })
+                  }
+                  placeholder="e.g. United States"
+                />
+              </div>
+              <div className="field">
+                <label htmlFor={`${author.id}-orcid`}>ORCID iD (optional)</label>
+                <input
+                  id={`${author.id}-orcid`}
+                  value={author.orcid}
+                  onChange={(e) =>
+                    updateAuthor(author.id, { orcid: e.target.value })
+                  }
+                  placeholder="0000-0000-0000-0000"
                 />
               </div>
             </div>
@@ -308,14 +381,14 @@ export function AuthorsStep({
                 onChange={() => setCorresponding(author.id)}
                 className="accent-[var(--color-signal-600)]"
               />
-              Corresponding author
+              Principal contact / corresponding author
             </label>
           </div>
         ))}
       </div>
 
       <button type="button" className="btn btn-soft" onClick={addAuthor}>
-        + Add co-author
+        + Add contributor
       </button>
     </div>
   )
@@ -331,33 +404,21 @@ export function FilesStep({
   return (
     <div className="space-y-6">
       <StepIntro
-        title="Cover letter and files"
-        description="Upload the main manuscript and any supporting materials. Files stay private."
+        title="Upload submission files"
+        description="OJS Upload Files step: attach the article text and any accompanying materials by genre."
       />
 
-      <div className="field">
-        <label htmlFor="coverLetter">Cover letter</label>
-        <textarea
-          id="coverLetter"
-          rows={6}
-          value={draft.coverLetter}
-          onChange={(e) => onChange({ coverLetter: e.target.value })}
-          placeholder="Briefly explain the contribution and suitability for this journal"
-          className="min-h-32 resize-y"
-        />
-      </div>
-
       <FilePicker
-        label="Main manuscript"
-        hint="PDF or Word — required"
+        label="Article text"
+        hint="Required — manuscript (PDF or Word). Anonymize if the journal uses blind review."
         file={draft.manuscriptFile}
         onPick={(file) => onChange({ manuscriptFile: file })}
         onClear={() => onChange({ manuscriptFile: null })}
       />
 
       <MultiFilePicker
-        label="Figures"
-        hint="Optional — individual image files or a zip"
+        label="Image / figure"
+        hint="Optional — high-resolution figures (≥300 dpi)"
         files={draft.figureFiles}
         onAdd={(files) =>
           onChange({ figureFiles: [...draft.figureFiles, ...files] })
@@ -370,8 +431,8 @@ export function FilesStep({
       />
 
       <MultiFilePicker
-        label="Supplementary materials"
-        hint="Optional — data, appendices, source zip"
+        label="Other / supplementary file"
+        hint="Optional — datasets, appendices, multimedia, cover materials"
         files={draft.supplementaryFiles}
         onAdd={(files) =>
           onChange({
@@ -400,8 +461,8 @@ export function EthicsStep({
   return (
     <div className="space-y-6">
       <StepIntro
-        title="Ethics declarations"
-        description="These statements are required before editorial screening."
+        title="Declarations & checklist"
+        description="OJS confirmation items: ethics statements plus the submission checklist before review."
       />
 
       <label className="surface flex items-start gap-3 p-4">
@@ -413,40 +474,40 @@ export function EthicsStep({
         />
         <span>
           <span className="block text-sm font-semibold text-ink-800">
-            I declare any conflicts of interest
+            Competing interests declared
           </span>
           <span className="mt-1 block text-sm text-ink-500">
-            Check this box after reviewing COI guidance for all authors.
+            All authors have disclosed conflicts of interest.
           </span>
         </span>
       </label>
 
       <div className="field">
-        <label htmlFor="conflictDetails">Conflict of interest details</label>
+        <label htmlFor="conflictDetails">Competing interests statement</label>
         <textarea
           id="conflictDetails"
           rows={3}
           value={draft.conflictDetails}
           onChange={(e) => onChange({ conflictDetails: e.target.value })}
-          placeholder="Enter “None” if there are no conflicts"
+          placeholder='Enter "None" if there are no conflicts'
           className="resize-y"
         />
       </div>
 
       <div className="field">
-        <label htmlFor="funding">Funding statement</label>
+        <label htmlFor="funding">Funding / supporting agencies</label>
         <textarea
           id="funding"
           rows={3}
           value={draft.fundingStatement}
           onChange={(e) => onChange({ fundingStatement: e.target.value })}
-          placeholder="List funding sources or write “No funding was received”"
+          placeholder='List funders or write "No funding was received"'
           className="resize-y"
         />
       </div>
 
       <div className="field">
-        <label htmlFor="dataAvailability">Data availability</label>
+        <label htmlFor="dataAvailability">Data availability statement</label>
         <textarea
           id="dataAvailability"
           rows={3}
@@ -466,11 +527,10 @@ export function EthicsStep({
         />
         <span>
           <span className="block text-sm font-semibold text-ink-800">
-            Ethics approval confirmed (if applicable)
+            Ethical approval confirmed (or N/A)
           </span>
           <span className="mt-1 block text-sm text-ink-500">
-            Confirm institutional review where human/animal subjects are involved,
-            or mark N/A in the notes below.
+            Human/animal research has institutional approval, or mark N/A below.
           </span>
         </span>
       </label>
@@ -482,11 +542,62 @@ export function EthicsStep({
           rows={3}
           value={draft.ethicsDetails}
           onChange={(e) => onChange({ ethicsDetails: e.target.value })}
-          placeholder="Approval ID / board name, or “Not applicable”"
+          placeholder='Approval ID / board name, or "Not applicable"'
           className="resize-y"
         />
       </div>
+
+      <div className="space-y-3 border-t border-line pt-5">
+        <p className="text-xs font-semibold tracking-wide text-ink-500 uppercase">
+          Submission checklist
+        </p>
+        <ChecklistItem
+          checked={draft.checklistOriginal}
+          onChange={(checked) => onChange({ checklistOriginal: checked })}
+          title="The submission has not been previously published"
+          detail="Nor is it before another journal for consideration."
+        />
+        <ChecklistItem
+          checked={draft.checklistGuidelines}
+          onChange={(checked) => onChange({ checklistGuidelines: checked })}
+          title="The submission file follows author guidelines"
+          detail="Formatting, referencing, and anonymization (if required) are complete."
+        />
+        <ChecklistItem
+          checked={draft.checklistCopyright}
+          onChange={(checked) => onChange({ checklistCopyright: checked })}
+          title="I agree to the copyright and licensing terms"
+          detail="Authors retain copyright under the journal’s open-access licence (CC BY)."
+        />
+      </div>
     </div>
+  )
+}
+
+function ChecklistItem({
+  checked,
+  onChange,
+  title,
+  detail,
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  title: string
+  detail: string
+}) {
+  return (
+    <label className="flex items-start gap-3 rounded-[var(--radius-md)] border border-line bg-paper-soft px-3 py-3">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-1 accent-[var(--color-signal-600)]"
+      />
+      <span>
+        <span className="block text-sm font-semibold text-ink-800">{title}</span>
+        <span className="mt-0.5 block text-sm text-ink-500">{detail}</span>
+      </span>
+    </label>
   )
 }
 
@@ -502,21 +613,27 @@ export function ReviewStep({
   const specialIssue =
     specialIssues.find((item) => item.id === draft.specialIssueId)?.label ?? '—'
 
+  const sectionTitle =
+    journals
+      .find((item) => item.id === draft.journalId)
+      ?.sections?.find((s) => s.id === draft.sectionId)?.title ?? '—'
+
   return (
     <div className="space-y-6">
       <StepIntro
-        title="Review and submit"
-        description="Confirm everything looks correct. You can go back to edit any step."
+        title="Review & submit"
+        description="OJS final confirmation: check metadata, contributors, and files, then finish submission."
       />
 
       <div className="grid gap-3">
-        <SummaryCard title="Journal">
+        <SummaryCard title="Start">
           <p>{journal}</p>
+          <p className="mt-1 text-ink-500">Section: {sectionTitle}</p>
           <p className="mt-1 text-ink-500">{draft.articleType}</p>
           <p className="mt-1 text-ink-500">{specialIssue}</p>
         </SummaryCard>
 
-        <SummaryCard title="Manuscript">
+        <SummaryCard title="Metadata">
           <p className="font-semibold text-ink-800">
             {draft.title.trim() || 'Untitled manuscript'}
           </p>
@@ -526,43 +643,61 @@ export function ReviewStep({
           <p className="mt-2 text-ink-500">
             Keywords: {draft.keywords.trim() || '—'}
           </p>
+          {draft.commentsForEditor.trim() ? (
+            <p className="mt-2 text-ink-500">
+              Comments for editor: {draft.commentsForEditor.trim()}
+            </p>
+          ) : null}
         </SummaryCard>
 
-        <SummaryCard title="Authors">
+        <SummaryCard title="Contributors">
           <ol className="space-y-2">
             {draft.authors.map((author, index) => (
               <li key={author.id}>
-                {index + 1}. {author.name || 'Unnamed author'}
+                {index + 1}. {author.name || 'Unnamed'}
                 {author.corresponding ? ' (corresponding)' : ''}
-                <span className="block text-ink-500">{author.affiliation || '—'}</span>
+                <span className="block text-ink-500">
+                  {[author.affiliation, author.country].filter(Boolean).join(' · ') ||
+                    '—'}
+                </span>
               </li>
             ))}
           </ol>
         </SummaryCard>
 
         <SummaryCard title="Files">
-          <p>
-            Manuscript:{' '}
+          <p className="break-all">
+            Article text:{' '}
             {draft.manuscriptFile?.name ?? 'Missing — required before submit'}
           </p>
-          <p className="mt-1">
-            Figures: {draft.figureFiles.length || 'None'}
+          <p className="mt-1 break-all">
+            Figures:{' '}
+            {draft.figureFiles.length
+              ? draft.figureFiles.map((f) => f.name).join(', ')
+              : 'None'}
           </p>
-          <p className="mt-1">
-            Supplementary: {draft.supplementaryFiles.length || 'None'}
+          <p className="mt-1 break-all">
+            Other:{' '}
+            {draft.supplementaryFiles.length
+              ? draft.supplementaryFiles.map((f) => f.name).join(', ')
+              : 'None'}
           </p>
         </SummaryCard>
 
-        <SummaryCard title="Ethics">
-          <p>COI declared: {draft.conflictOfInterest ? 'Yes' : 'No'}</p>
+        <SummaryCard title="Declarations">
+          <p>Competing interests: {draft.conflictDetails.trim() || '—'}</p>
+          <p className="mt-1">Funding: {draft.fundingStatement.trim() || '—'}</p>
+          <p className="mt-1">Data: {draft.dataAvailability.trim() || '—'}</p>
+          <p className="mt-1">Ethics: {draft.ethicsDetails.trim() || '—'}</p>
           <p className="mt-1">
-            Funding: {draft.fundingStatement.trim() || '—'}
-          </p>
-          <p className="mt-1">
-            Data: {draft.dataAvailability.trim() || '—'}
-          </p>
-          <p className="mt-1">
-            Ethics: {draft.ethicsDetails.trim() || '—'}
+            Checklist:{' '}
+            {[
+              draft.checklistOriginal,
+              draft.checklistGuidelines,
+              draft.checklistCopyright,
+            ].every(Boolean)
+              ? 'Complete'
+              : 'Incomplete'}
           </p>
         </SummaryCard>
       </div>
@@ -620,20 +755,24 @@ function FilePicker({
   return (
     <div className="surface p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-ink-800">{label}</p>
           <p className="mt-1 text-sm text-ink-500">{hint}</p>
           {file ? (
-            <p className="mt-2 text-sm font-medium text-signal-700">
-              {file.name} · {file.sizeLabel}
+            <p
+              className="mt-2 break-all text-sm font-medium text-signal-700 sm:truncate sm:break-normal"
+              title={`${file.name} · ${file.sizeLabel}`}
+            >
+              {file.name}
+              <span className="whitespace-nowrap"> · {file.sizeLabel}</span>
             </p>
           ) : (
             <p className="mt-2 text-sm text-ink-300">No file selected</p>
           )}
         </div>
-        <div className="flex gap-2">
-          <label className="btn btn-ghost cursor-pointer">
-            Choose file
+        <div className="flex shrink-0 gap-2">
+          <label className="btn btn-ghost cursor-pointer whitespace-nowrap">
+            {file ? 'Change file' : 'Choose file'}
             <input
               type="file"
               className="sr-only"
@@ -647,7 +786,11 @@ function FilePicker({
             />
           </label>
           {file ? (
-            <button type="button" className="btn btn-ghost" onClick={onClear}>
+            <button
+              type="button"
+              className="btn btn-ghost whitespace-nowrap"
+              onClick={onClear}
+            >
               Remove
             </button>
           ) : null}
@@ -683,8 +826,12 @@ function MultiFilePicker({
                   key={file.id}
                   className="flex items-center justify-between gap-3 rounded-md bg-paper px-3 py-2 text-sm"
                 >
-                  <span className="truncate font-medium text-ink-700">
-                    {file.name} · {file.sizeLabel}
+                  <span
+                    className="min-w-0 flex-1 break-all font-medium text-ink-700 sm:truncate sm:break-normal"
+                    title={`${file.name} · ${file.sizeLabel}`}
+                  >
+                    {file.name}
+                    <span className="whitespace-nowrap"> · {file.sizeLabel}</span>
                   </span>
                   <button
                     type="button"

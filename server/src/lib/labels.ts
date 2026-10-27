@@ -6,5 +6,7 @@ export const roleLabels: Record<AppRole, string> = {
   editor: 'Editor',
   reviewer: 'Reviewer',
   production: 'Production Editor',
-  admin: 'Publisher Admin',
+  admin: 'Editor in Chief',
+  journal_manager: 'Journal Manager',
+  copyeditor: 'Copyeditor',
 }

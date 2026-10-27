@@ -1,9 +1,9 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { roleLabels, type AppRole } from '../data/mock'
 import { BrandMark } from '../components/BrandMark'
 import { PasswordInput } from '../components/PasswordInput'
-import { Toast } from '../components/Toast'
+import { useToast } from '../components/ToastProvider'
 import { apiFetch } from '../lib/api'
 
 const registerRoles: AppRole[] = [
@@ -11,6 +11,7 @@ const registerRoles: AppRole[] = [
   'reviewer',
   'editor',
   'production',
+  'copyeditor',
 ]
 
 type FieldErrors = {
@@ -38,6 +39,8 @@ function passwordStrength(password: string) {
 
 export function RegisterPage() {
   const navigate = useNavigate()
+  const toast = useToast()
+  const [searchParams] = useSearchParams()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [affiliation, setAffiliation] = useState('')
@@ -46,9 +49,7 @@ export function RegisterPage() {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [errors, setErrors] = useState<FieldErrors>({})
-  const [formError, setFormError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
 
   const strength = useMemo(() => passwordStrength(password), [password])
 
@@ -65,10 +66,12 @@ export function RegisterPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    setFormError(null)
     const nextErrors = validate()
     setErrors(nextErrors)
-    if (Object.keys(nextErrors).length > 0) return
+    if (Object.keys(nextErrors).length > 0) {
+      toast.error('Please fix the highlighted fields.')
+      return
+    }
 
     setPending(true)
     try {
@@ -83,18 +86,25 @@ export function RegisterPage() {
           expertise: role === 'reviewer' ? expertise.trim() || undefined : undefined,
         }),
       })
-      setToast('Account created. Please sign in.')
+      toast.success('Account created. Please sign in.')
       window.setTimeout(() => {
-        navigate('/login', {
-          replace: true,
-          state: {
-            registered: true,
-            email: email.trim().toLowerCase(),
+        const query = searchParams.toString()
+        navigate(
+          {
+            pathname: '/login',
+            search: query ? `?${query}` : '',
           },
-        })
+          {
+            replace: true,
+            state: {
+              registered: true,
+              email: email.trim().toLowerCase(),
+            },
+          },
+        )
       }, 900)
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Registration failed.')
+      toast.error(err instanceof Error ? err.message : 'Registration failed.')
     } finally {
       setPending(false)
     }
@@ -102,8 +112,6 @@ export function RegisterPage() {
 
   return (
     <div className="auth-canvas relative flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
-      {toast ? <Toast message={toast} tone="success" /> : null}
-
       <div className="auth-card relative z-10 w-full max-w-[28rem] animate-fade">
         <BrandMark size="md" />
         <p className="mt-7 text-[0.7rem] font-semibold tracking-[0.16em] text-signal-600 uppercase">
@@ -231,12 +239,6 @@ export function RegisterPage() {
             error={errors.confirm}
           />
 
-          {formError ? (
-            <p className="rounded-[var(--radius-md)] bg-rose-50 px-3 py-2 text-sm text-rose-600">
-              {formError}
-            </p>
-          ) : null}
-
           <button type="submit" className="btn btn-signal w-full" disabled={pending}>
             {pending ? 'Creating account…' : 'Create account'}
           </button>
@@ -245,7 +247,7 @@ export function RegisterPage() {
         <p className="mt-6 text-center text-sm text-ink-500">
           Already registered?{' '}
           <Link
-            to="/login"
+            to={{ pathname: '/login', search: searchParams.toString() ? `?${searchParams.toString()}` : '' }}
             className="font-semibold text-signal-700 underline decoration-signal-400/50 underline-offset-4"
           >
             Sign in

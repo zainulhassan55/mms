@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { StatusBadge } from '../components/StatusBadge'
 import { DetailHeader } from '../components/ui'
+import { useToast } from '../components/ToastProvider'
 import { statusLabels } from '../data/mock'
 import {
   downloadProof,
@@ -13,6 +14,7 @@ import {
 export function ProofApprovalPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const toast = useToast()
   const [manuscript, setManuscript] = useState<ApiManuscript | null>(null)
   const [loading, setLoading] = useState(true)
   const [pending, setPending] = useState(false)
@@ -20,7 +22,6 @@ export function ProofApprovalPage() {
 
   const [corrections, setCorrections] = useState('')
   const [mode, setMode] = useState<'choose' | 'corrections'>('choose')
-  const [error, setError] = useState<string | null>(null)
   const [downloading, setDownloading] = useState(false)
 
   useEffect(() => {
@@ -34,10 +35,11 @@ export function ProofApprovalPage() {
         if (!cancelled) setManuscript(detail.manuscript)
       } catch (err) {
         if (!cancelled) {
+          const message =
+            err instanceof Error ? err.message : 'Manuscript not found.'
           setManuscript(null)
-          setLoadError(
-            err instanceof Error ? err.message : 'Manuscript not found.',
-          )
+          setLoadError(message)
+          toast.error(message)
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -47,7 +49,7 @@ export function ProofApprovalPage() {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, toast])
 
   if (loading) {
     return (
@@ -93,12 +95,12 @@ export function ProofApprovalPage() {
   async function handleApprove() {
     if (!id) return
     setPending(true)
-    setError(null)
     try {
       await respondToProof(id, { action: 'approve' })
+      toast.success('Proof approved.')
       navigate(`/author/submissions/${id}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not approve proof.')
+      toast.error(err instanceof Error ? err.message : 'Could not approve proof.')
     } finally {
       setPending(false)
     }
@@ -108,15 +110,15 @@ export function ProofApprovalPage() {
     event.preventDefault()
     if (!id) return
     setPending(true)
-    setError(null)
     try {
       await respondToProof(id, {
         action: 'corrections',
         corrections,
       })
+      toast.success('Corrections sent to production.')
       navigate(`/author/submissions/${id}`)
     } catch (err) {
-      setError(
+      toast.error(
         err instanceof Error ? err.message : 'Could not send corrections.',
       )
     } finally {
@@ -164,14 +166,13 @@ export function ProofApprovalPage() {
           onClick={() => {
             void (async () => {
               setDownloading(true)
-              setError(null)
               try {
                 await downloadProof(
                   manuscript.id,
                   manuscript.proofFileName ?? 'proof.pdf',
                 )
               } catch (err) {
-                setError(
+                toast.error(
                   err instanceof Error
                     ? err.message
                     : 'Could not download proof.',
@@ -210,11 +211,6 @@ export function ProofApprovalPage() {
               Request corrections
             </button>
           </div>
-          {error ? (
-            <p className="rounded-md bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">
-              {error}
-            </p>
-          ) : null}
         </div>
       ) : (
         <form
@@ -233,11 +229,6 @@ export function ProofApprovalPage() {
               required
             />
           </div>
-          {error ? (
-            <p className="rounded-md bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">
-              {error}
-            </p>
-          ) : null}
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <button
               type="button"

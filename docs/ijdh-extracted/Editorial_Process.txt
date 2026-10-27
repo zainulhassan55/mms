@@ -1,0 +1,25 @@
+Editorial Process
+The 
+International Journal of Digital Health (IJDH)
+ implements a rigorous peer review process. In most cases, this is a single-blind assessment involving at least two independent reviewers, followed by a final acceptance or rejection decision by the Editor-in-Chief. The Editor-in-Chief holds ultimate responsibility for the academic quality of the publication process, including approving or rejecting recommendations from the Academic Editor or Associate Editor. The journal's publication ethics and malpractice policies follow the Committee on Publication Ethics (
+COPE
+) Best Practice Guidelines and are supplemented by Sample’s Instructions for Authors.
+A flow chart of the review process is given below:
+Initial Checks
+All manuscripts submitted to the Editorial Office undergo an initial screening by a Managing Editor before being forwarded to the Editor-in-Chief. This screening verifies proper formatting, compliance with the journal’s ethical policies, and alignment with the journal’s aims and scope. Manuscripts that do not meet these basic requirements may be rejected outright or returned to the authors for revision and resubmission. No assessment of scientific significance or potential impact is 
+made at this stage. Rejection decisions during initial checks are confirmed by the Managing Editor.
+Assignment to Editor-in-Chief
+Manuscripts passing the initial checks are forwarded to the Editor-in-Chief, who may assign the manuscript to a responsible Academic Editor for peer review. If the manuscript does not meet the journal’s quality standards, the Editor-in-Chief may reject it directly (desk rejection). The Editor-in-Chief may also request minor revisions before proceeding to peer review.
+Assignment to Academic Editor
+The Academic Editor evaluates the academic merit of the manuscript and selects at least two independent reviewers with relevant expertise. All reviews follow a single-blind model. The Academic Editor may recommend direct rejection to the Editor-in-Chief or request revisions from the authors before or during review.
+Peer Review and Evaluation
+Reviewers assess the manuscript for originality, scientific rigor, methodological soundness, clarity, relevance to the field, and overall contribution to the research community. They provide detailed comments and a recommendation: Accept, Minor Revision, Major Revision, or Reject.
+Editorial Decision
+Based on at least two independent review reports, the Academic Editor makes a recommendation to the Editor-in-Chief, who renders the final decision (Accept, Revise, or Reject).
+Revision and Re-review (if necessary)
+Authors invited to revise must respond to all reviewer and editor comments point-by-point in a detailed response letter. Revised manuscripts (especially those requiring major revisions) may be sent back to the original reviewers for re-evaluation. Authors are generally expected to submit revisions within 30 days (extensions may be granted upon request).
+Final Check
+Accepted manuscripts undergo a final technical and ethical review by the Editorial Office (including language, formatting, data availability, ethics statements, etc.). Upon successful completion, authors receive an official acceptance letter. 
+Manuscripts failing to meet standards at this stage are returned to the Editor-in-Chief for further action.
+Production and Publishing
+Once accepted, the manuscript proceeds to copyediting, typesetting, proofreading, and online publication as soon as possible under the journal’s open access model.

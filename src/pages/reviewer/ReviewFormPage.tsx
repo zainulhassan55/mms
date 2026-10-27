@@ -5,6 +5,7 @@ import {
   type ReviewRecommendation,
 } from '../../data/mock'
 import { DetailHeader } from '../../components/ui'
+import { useToast } from '../../components/ToastProvider'
 import {
   downloadManuscriptFile,
   fetchInvitation,
@@ -22,6 +23,7 @@ const recommendations: ReviewRecommendation[] = [
 export function ReviewFormPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const toast = useToast()
 
   const [invitation, setInvitation] = useState<ApiInvitation | null>(null)
   const [loading, setLoading] = useState(true)
@@ -38,8 +40,6 @@ export function ReviewFormPage() {
   const [originality, setOriginality] = useState(3)
   const [methodology, setMethodology] = useState(3)
   const [clarity, setClarity] = useState(3)
-  const [error, setError] = useState<string | null>(null)
-  const [downloadError, setDownloadError] = useState<string | null>(null)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -53,10 +53,11 @@ export function ReviewFormPage() {
         if (!cancelled) setInvitation(item)
       } catch (err) {
         if (!cancelled) {
+          const message =
+            err instanceof Error ? err.message : 'Invitation not found.'
           setInvitation(null)
-          setLoadError(
-            err instanceof Error ? err.message : 'Invitation not found.',
-          )
+          setLoadError(message)
+          toast.error(message)
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -66,7 +67,7 @@ export function ReviewFormPage() {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, toast])
 
   if (loading) {
     return (
@@ -112,12 +113,11 @@ export function ReviewFormPage() {
       !weaknesses.trim() ||
       !commentsToAuthor.trim()
     ) {
-      setError('Please complete all required review fields.')
+      toast.error('Please complete all required review fields.')
       return
     }
 
     setPending(true)
-    setError(null)
     try {
       await submitReviewReport(invitation!.id, {
         summary: summary.trim(),
@@ -130,9 +130,10 @@ export function ReviewFormPage() {
         methodology,
         clarity,
       })
+      toast.success('Review submitted. Thank you.')
       navigate('/reviewer/history')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not submit review.')
+      toast.error(err instanceof Error ? err.message : 'Could not submit review.')
     } finally {
       setPending(false)
     }
@@ -171,11 +172,6 @@ export function ReviewFormPage() {
             </p>
           </div>
         </div>
-        {downloadError ? (
-          <p className="border-b border-line bg-rose-50 px-4 py-2 text-sm text-rose-600">
-            {downloadError}
-          </p>
-        ) : null}
         {!invitation.files || invitation.files.length === 0 ? (
           <p className="px-4 py-8 text-sm text-ink-500">
             No downloadable files are available for this invitation.
@@ -198,7 +194,6 @@ export function ReviewFormPage() {
                   className="btn btn-ghost shrink-0"
                   disabled={downloadingId === file.id}
                   onClick={() => {
-                    setDownloadError(null)
                     setDownloadingId(file.id)
                     void downloadManuscriptFile(
                       invitation.manuscriptId,
@@ -206,7 +201,7 @@ export function ReviewFormPage() {
                       file.fileName,
                     )
                       .catch((err) => {
-                        setDownloadError(
+                        toast.error(
                           err instanceof Error
                             ? err.message
                             : 'Download failed.',
@@ -316,12 +311,6 @@ export function ReviewFormPage() {
             onChange={setClarity}
           />
         </div>
-
-        {error ? (
-          <p className="rounded-md bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">
-            {error}
-          </p>
-        ) : null}
 
         <div className="flex flex-col-reverse gap-3 border-t border-line pt-5 sm:flex-row sm:justify-end">
           <Link to="/reviewer/active" className="btn btn-ghost">

@@ -94,11 +94,49 @@ export function emailLayout(title: string, bodyHtml: string) {
 </html>`
 }
 
+export type MailCategory =
+  | 'transactional'
+  | 'workflow'
+  | 'decision'
+  | 'deadline'
+
 type SendMailInput = {
   to: string
   subject: string
   text: string
   html?: string
+  /** Defaults to workflow. transactional always sends (password reset, welcome). */
+  category?: MailCategory
+  /** When false, skip preference lookup and always attempt delivery. */
+  respectPrefs?: boolean
+}
+
+type PrefRow = {
+  notifyEmail: boolean
+  notifyDeadlines: boolean
+  notifyDecisions: boolean
+}
+
+async function loadRecipientPrefs(email: string): Promise<PrefRow | null> {
+  const { prisma } = await import('../db.js')
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: {
+      notifyEmail: true,
+      notifyDeadlines: true,
+      notifyDecisions: true,
+    },
+  })
+  return user
+}
+
+function prefsAllow(prefs: PrefRow | null, category: MailCategory) {
+  if (!prefs) return true
+  if (category === 'transactional') return true
+  if (!prefs.notifyEmail) return false
+  if (category === 'deadline' && !prefs.notifyDeadlines) return false
+  if (category === 'decision' && !prefs.notifyDecisions) return false
+  return true
 }
 
 /**
@@ -108,6 +146,16 @@ type SendMailInput = {
 export async function sendMail(input: SendMailInput) {
   const to = input.to.trim().toLowerCase()
   if (!to) return { sent: false as const, reason: 'missing_recipient' as const }
+
+  const category = input.category ?? 'workflow'
+  const respectPrefs = input.respectPrefs !== false
+  if (respectPrefs && category !== 'transactional') {
+    const prefs = await loadRecipientPrefs(to)
+    if (!prefsAllow(prefs, category)) {
+      console.info(`[mail:skipped-prefs] to=${to} category=${category}`)
+      return { sent: false as const, reason: 'prefs_disabled' as const }
+    }
+  }
 
   if (!isEmailDeliveryEnabled()) {
     console.info(

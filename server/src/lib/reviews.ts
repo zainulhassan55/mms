@@ -31,19 +31,49 @@ export type InvitationWithRelations = ReviewInvitation & {
 export const reviewerFileKinds = new Set([
   'manuscript',
   'figures',
+  'figure',
   'supplementary',
   'revision',
+  'review_copy',
 ])
 
-export function toClientInvitation(item: InvitationWithRelations) {
-  const files = (item.manuscript?.files ?? [])
-    .filter((file) => reviewerFileKinds.has(file.kind))
+/** Prefer anonymized review copies when present; otherwise manuscript/revision files. */
+export function filesVisibleToReviewer(
+  files: Array<{
+    id: string
+    kind: string
+    fileName: string
+    sizeBytes: number | null
+    visibility?: string | null
+  }>,
+) {
+  const reviewCopies = files.filter(
+    (f) => f.kind === 'review_copy' || f.visibility === 'review',
+  )
+  const source = reviewCopies.length > 0 ? reviewCopies : files
+  return source
+    .filter(
+      (file) =>
+        reviewerFileKinds.has(file.kind) &&
+        file.visibility !== 'staff' &&
+        file.kind !== 'cover_letter' &&
+        file.kind !== 'identity',
+    )
     .map((file) => ({
       id: file.id,
       kind: file.kind,
       fileName: file.fileName,
       sizeBytes: file.sizeBytes,
     }))
+}
+
+export function toClientInvitation(item: InvitationWithRelations) {
+  const files = filesVisibleToReviewer(
+    (item.manuscript?.files ?? []).map((file) => ({
+      ...file,
+      visibility: (file as { visibility?: string }).visibility,
+    })),
+  )
 
   return {
     id: item.id,
@@ -98,12 +128,16 @@ export function toClientReview(
   }
 }
 
-/** Authors see reports only after an editorial decision that shares feedback. */
+/**
+ * Authors see reviewer reports only after the Editor in Chief has released a
+ * final decision for that round (never while reports are still with editors/EIC).
+ */
 export function authorMaySeeReviews(status: string) {
   return [
     'revision_requested',
     'rejected',
     'accepted',
+    'copyediting',
     'in_production',
     'proof_sent',
     'ready_for_publication',

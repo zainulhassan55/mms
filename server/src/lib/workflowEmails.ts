@@ -5,7 +5,9 @@ import {
   escapeHtml,
   journalFromName,
   sendMail,
+  type MailCategory,
 } from './mail.js'
+import { roleLabels } from './labels.js'
 
 type Person = { name: string; email: string }
 
@@ -48,6 +50,80 @@ async function loadEditor(manuscriptId: string): Promise<Person | null> {
   return manuscript.assignedEditor
 }
 
+async function loadEicRecipients(journalId?: string | null): Promise<Person[]> {
+  const byEmail = new Map<string, Person>()
+
+  const platform = await prisma.user.findMany({
+    where: { role: { in: ['admin', 'journal_manager'] } },
+    select: { name: true, email: true },
+  })
+  for (const user of platform) {
+    byEmail.set(user.email.toLowerCase(), user)
+  }
+
+  if (journalId) {
+    const members = await prisma.journalMembership.findMany({
+      where: {
+        journalId,
+        role: 'journal_manager',
+      },
+      select: { user: { select: { name: true, email: true } } },
+    })
+    for (const row of members) {
+      byEmail.set(row.user.email.toLowerCase(), {
+        name: row.user.name,
+        email: row.user.email,
+      })
+    }
+  }
+
+  return [...byEmail.values()]
+}
+
+async function loadJournalEditorialStaff(
+  journalId: string,
+): Promise<Person[]> {
+  const byEmail = new Map<string, Person>()
+
+  const members = await prisma.journalMembership.findMany({
+    where: {
+      journalId,
+      role: { in: ['journal_manager', 'editor', 'section_editor'] },
+    },
+    select: { user: { select: { name: true, email: true } } },
+  })
+  for (const row of members) {
+    byEmail.set(row.user.email.toLowerCase(), {
+      name: row.user.name,
+      email: row.user.email,
+    })
+  }
+
+  for (const eic of await loadEicRecipients(journalId)) {
+    byEmail.set(eic.email.toLowerCase(), eic)
+  }
+
+  return [...byEmail.values()]
+}
+
+async function mailTo(
+  person: Person,
+  input: {
+    subject: string
+    text: string
+    html: string
+    category?: MailCategory
+  },
+) {
+  await sendMail({
+    to: person.email,
+    subject: input.subject,
+    text: input.text,
+    html: input.html,
+    category: input.category,
+  })
+}
+
 function manuscriptBlock(input: {
   number: string
   title: string
@@ -67,21 +143,57 @@ function queue(task: Promise<unknown>) {
   void task.catch((error) => console.error('[workflow-email]', error))
 }
 
+export function notifyAccountWelcome(input: {
+  email: string
+  name: string
+  role: string
+  createdByAdmin?: boolean
+}) {
+  queue(
+    (async () => {
+      const href = appLink('/login')
+      const roleLabel =
+        roleLabels[input.role as keyof typeof roleLabels] || input.role
+      const intro = input.createdByAdmin
+        ? `An account has been created for you on ${journalFromName()} as ${roleLabel}. Use the password provided by your administrator to sign in.`
+        : `Welcome to ${journalFromName()}. Your ${roleLabel} account is ready.`
+      await sendMail({
+        to: input.email,
+        subject: `Welcome to ${journalFromName()}`,
+        category: 'transactional',
+        respectPrefs: false,
+        text: `Dear ${input.name},
+
+${intro}
+
+Sign in: ${href}`,
+        html: emailLayout(
+          'Welcome',
+          `<p>Dear ${escapeHtml(input.name)},</p>
+<p>${escapeHtml(intro)}</p>
+${cta('Sign in', href)}`,
+        ),
+      })
+    })(),
+  )
+}
+
 export function notifySubmissionReceived(input: {
   manuscriptId: string
   number: string
   title: string
   journalName?: string | null
+  journalId?: string | null
 }) {
   queue(
     (async () => {
       const author = await loadAuthor(input.manuscriptId)
-      if (!author) return
-      const href = appLink(`/author/submissions/${input.number}`)
-      await sendMail({
-        to: author.email,
-        subject: `[${input.number}] Submission received`,
-        text: `Dear ${author.name},
+      if (author) {
+        const href = appLink(`/author/submissions/${input.number}`)
+        await mailTo(author, {
+          category: 'workflow',
+          subject: `[${input.number}] Submission received`,
+          text: `Dear ${author.name},
 
 Thank you for submitting your manuscript to ${input.journalName || journalFromName()}.
 
@@ -91,14 +203,43 @@ Title: ${input.title}
 Your submission has been received and will enter editorial screening.
 
 ${href}`,
-        html: emailLayout(
-          'Submission received',
-          `<p>Dear ${escapeHtml(author.name)},</p>
+          html: emailLayout(
+            'Submission received',
+            `<p>Dear ${escapeHtml(author.name)},</p>
 <p>Thank you for submitting your manuscript. It has been received and will enter editorial screening.</p>
 ${manuscriptBlock(input)}
 ${cta('View submission', href)}`,
-        ),
-      })
+          ),
+        })
+      }
+
+      if (input.journalId) {
+        const staff = await loadJournalEditorialStaff(input.journalId)
+        const editorHref = appLink(`/editor/manuscript/${input.number}`)
+        await Promise.all(
+          staff.map((person) =>
+            mailTo(person, {
+              category: 'workflow',
+              subject: `[${input.number}] New submission awaiting screening`,
+              text: `Dear ${person.name},
+
+A new manuscript was submitted and is awaiting editorial screening.
+
+Manuscript ID: ${input.number}
+Title: ${input.title}
+
+${editorHref}`,
+              html: emailLayout(
+                'New submission',
+                `<p>Dear ${escapeHtml(person.name)},</p>
+<p>A new manuscript was submitted and is awaiting editorial screening.</p>
+${manuscriptBlock(input)}
+${cta('Open in editor queue', editorHref)}`,
+              ),
+            }),
+          ),
+        )
+      }
     })(),
   )
 }
@@ -116,6 +257,7 @@ export function notifyUnderReview(input: {
       const href = appLink(`/author/submissions/${input.number}`)
       await sendMail({
         to: author.email,
+        category: 'workflow',
         subject: `[${input.number}] Now under peer review`,
         text: `Dear ${author.name},
 
@@ -151,6 +293,7 @@ export function notifyFormattingRequested(input: {
       const href = appLink(`/author/submissions/${input.number}`)
       await sendMail({
         to: author.email,
+        category: 'decision',
         subject: `[${input.number}] Formatting revision requested`,
         text: `Dear ${author.name},
 
@@ -191,6 +334,7 @@ export function notifyDeskRejected(input: {
       const href = appLink(`/author/submissions/${input.number}`)
       await sendMail({
         to: author.email,
+        category: 'decision',
         subject: `[${input.number}] Decision: desk rejection`,
         text: `Dear ${author.name},
 
@@ -240,6 +384,7 @@ export function notifyEditorialDecision(input: {
       const subjectLabel = labels[input.decision]
       await sendMail({
         to: author.email,
+        category: 'decision',
         subject: `[${input.number}] Editorial decision: ${subjectLabel}`,
         text: `Dear ${author.name},
 
@@ -288,6 +433,7 @@ export function notifyReviewerInvitation(input: {
         input.round && input.round > 1 ? ` (round ${input.round})` : ''
       await sendMail({
         to: input.reviewerEmail,
+        category: 'workflow',
         subject: `[${input.number}] Invitation to review${roundLabel}`,
         text: `Dear ${input.reviewerName},
 
@@ -329,6 +475,7 @@ export function notifyEditorInvitationResponse(input: {
       const verb = input.response
       await sendMail({
         to: editor.email,
+        category: 'workflow',
         subject: `[${input.number}] Reviewer ${verb} invitation`,
         text: `Dear ${editor.name},
 
@@ -368,6 +515,7 @@ export function notifyEditorReviewSubmitted(input: {
       const href = appLink(`/editor/manuscript/${input.number}`)
       await sendMail({
         to: editor.email,
+        category: 'workflow',
         subject: `[${input.number}] Review submitted`,
         text: `Dear ${editor.name},
 
@@ -393,33 +541,285 @@ export function notifyEditorRevisionSubmitted(input: {
   number: string
   title: string
   journalName?: string | null
+  journalId?: string | null
   kind: 'formatting' | 'content'
 }) {
   queue(
     (async () => {
-      const editor = await loadEditor(input.manuscriptId)
-      if (!editor) return
       const href = appLink(`/editor/manuscript/${input.number}`)
-      const label =
-        input.kind === 'formatting'
-          ? 'Formatting revision submitted'
-          : 'Author revision submitted'
-      await sendMail({
-        to: editor.email,
-        subject: `[${input.number}] ${label}`,
-        text: `Dear ${editor.name},
+      const author = await loadAuthor(input.manuscriptId)
+      if (author) {
+        await mailTo(author, {
+          category: 'workflow',
+          subject: `[${input.number}] Revision received`,
+          text: `Dear ${author.name},
 
-${label} for ${input.number}: ${input.title}
+We received your revised manuscript (${input.number}).
+
+${
+  input.kind === 'formatting'
+    ? 'It will return to editorial screening.'
+    : 'The Editor in Chief will route it to an editor for the next review round.'
+}
+
+${appLink(`/author/submissions/${input.number}`)}`,
+          html: emailLayout(
+            'Revision received',
+            `<p>Dear ${escapeHtml(author.name)},</p>
+<p>We received your revised manuscript.</p>
+${manuscriptBlock(input)}
+<p>${
+              input.kind === 'formatting'
+                ? 'It will return to editorial screening.'
+                : 'The Editor in Chief will route it to an editor for the next review round.'
+            }</p>
+${cta('Track status', appLink(`/author/submissions/${input.number}`))}`,
+          ),
+        })
+      }
+
+      if (input.kind === 'formatting') {
+        const editor = await loadEditor(input.manuscriptId)
+        if (!editor) return
+        await mailTo(editor, {
+          category: 'workflow',
+          subject: `[${input.number}] Formatting revision submitted`,
+          text: `Dear ${editor.name},
+
+Formatting revision submitted for ${input.number}: ${input.title}
+
+${href}`,
+          html: emailLayout(
+            'Formatting revision submitted',
+            `<p>Dear ${escapeHtml(editor.name)},</p>
+<p>The author has uploaded a formatting revision.</p>
+${manuscriptBlock(input)}
+${cta('Open manuscript', href)}`,
+          ),
+        })
+        return
+      }
+
+      const eics = await loadEicRecipients(input.journalId)
+      await Promise.all(
+        eics.map((person) =>
+          mailTo(person, {
+            category: 'workflow',
+            subject: `[${input.number}] Author revision awaiting EIC routing`,
+            text: `Dear ${person.name},
+
+An author revision was submitted and is awaiting Editor in Chief routing.
+
+Manuscript ID: ${input.number}
+Title: ${input.title}
+
+${href}`,
+            html: emailLayout(
+              'Author revision awaiting routing',
+              `<p>Dear ${escapeHtml(person.name)},</p>
+<p>An author revision was submitted and needs to be routed to a handling editor.</p>
+${manuscriptBlock(input)}
+${cta('Route revision', href)}`,
+            ),
+          }),
+        ),
+      )
+    })(),
+  )
+}
+
+export function notifyEicEditorRecommendation(input: {
+  manuscriptId: string
+  number: string
+  title: string
+  journalName?: string | null
+  journalId?: string | null
+  editorName: string
+  recommendation: string
+  note: string
+}) {
+  queue(
+    (async () => {
+      const href = appLink(`/editor/manuscript/${input.number}`)
+      const recipients = await loadEicRecipients(input.journalId)
+      const label = input.recommendation.replaceAll('_', ' ')
+      await Promise.all(
+        recipients.map((person) =>
+          mailTo(person, {
+            category: 'decision',
+            subject: `[${input.number}] Editor recommendation: ${label}`,
+            text: `Dear ${person.name},
+
+${input.editorName} recommends ${label} for ${input.number}.
+
+Note:
+${input.note}
+
+${href}`,
+            html: emailLayout(
+              'Editor recommendation for EIC',
+              `<p>Dear ${escapeHtml(person.name)},</p>
+<p><strong>${escapeHtml(input.editorName)}</strong> recommends <strong>${escapeHtml(label)}</strong>.</p>
+${manuscriptBlock(input)}
+<p><strong>Editor note</strong></p>
+<p style="white-space:pre-wrap;background:#f8fafb;border:1px solid #d4dde3;border-radius:8px;padding:12px;">${escapeHtml(input.note)}</p>
+${cta('Open manuscript', href)}`,
+            ),
+          }),
+        ),
+      )
+    })(),
+  )
+}
+
+export function notifyEditorRevisionRouted(input: {
+  manuscriptId: string
+  number: string
+  title: string
+  journalName?: string | null
+  editorEmail: string
+  editorName: string
+  roundNumber: number
+}) {
+  queue(
+    (async () => {
+      const href = appLink(`/editor/manuscript/${input.number}`)
+      await sendMail({
+        to: input.editorEmail,
+        category: 'workflow',
+        subject: `[${input.number}] Revision routed — invite reviewers (round ${input.roundNumber})`,
+        text: `Dear ${input.editorName},
+
+The Editor in Chief routed a revised manuscript to you for review round ${input.roundNumber}.
+
+Manuscript ID: ${input.number}
+Title: ${input.title}
+
+Please invite previous or new reviewers.
 
 ${href}`,
         html: emailLayout(
-          label,
-          `<p>Dear ${escapeHtml(editor.name)},</p>
-<p>The author has uploaded a revised manuscript.</p>
+          'Revision routed to you',
+          `<p>Dear ${escapeHtml(input.editorName)},</p>
+<p>The Editor in Chief routed a revised manuscript to you for review round ${input.roundNumber}. Please invite previous or new reviewers.</p>
 ${manuscriptBlock(input)}
-${cta('Open manuscript', href)}`,
+${cta('Invite reviewers', href)}`,
         ),
       })
+
+      const author = await loadAuthor(input.manuscriptId)
+      if (author) {
+        await mailTo(author, {
+          category: 'workflow',
+          subject: `[${input.number}] Revision entered peer review`,
+          text: `Dear ${author.name},
+
+Your revised manuscript is now under peer review again (round ${input.roundNumber}).
+
+${appLink(`/author/submissions/${input.number}`)}`,
+          html: emailLayout(
+            'Revision under peer review',
+            `<p>Dear ${escapeHtml(author.name)},</p>
+<p>Your revised manuscript is now under peer review again (round ${input.roundNumber}).</p>
+${manuscriptBlock(input)}
+${cta('Track status', appLink(`/author/submissions/${input.number}`))}`,
+          ),
+        })
+      }
+    })(),
+  )
+}
+
+export function notifyCopyeditorAssigned(input: {
+  copyeditorEmail: string
+  copyeditorName: string
+  number: string
+  title: string
+  journalName?: string | null
+}) {
+  queue(
+    (async () => {
+      const href = appLink('/copyedit/queue')
+      await sendMail({
+        to: input.copyeditorEmail,
+        category: 'workflow',
+        subject: `[${input.number}] Copyediting assignment`,
+        text: `Dear ${input.copyeditorName},
+
+You have been assigned to copyedit a manuscript.
+
+Manuscript ID: ${input.number}
+Title: ${input.title}
+
+${href}`,
+        html: emailLayout(
+          'Copyediting assignment',
+          `<p>Dear ${escapeHtml(input.copyeditorName)},</p>
+<p>You have been assigned to copyedit a manuscript.</p>
+${manuscriptBlock(input)}
+${cta('Open copyedit queue', href)}`,
+        ),
+      })
+    })(),
+  )
+}
+
+export function notifyProductionHandoff(input: {
+  manuscriptId: string
+  number: string
+  title: string
+  journalName?: string | null
+  journalId?: string | null
+}) {
+  queue(
+    (async () => {
+      const href = appLink(`/production/manuscript/${input.number}`)
+      const byEmail = new Map<string, Person>()
+
+      const productionUsers = await prisma.user.findMany({
+        where: { role: 'production' },
+        select: { name: true, email: true },
+      })
+      for (const user of productionUsers) {
+        byEmail.set(user.email.toLowerCase(), user)
+      }
+
+      if (input.journalId) {
+        const members = await prisma.journalMembership.findMany({
+          where: { journalId: input.journalId, role: 'production' },
+          select: { user: { select: { name: true, email: true } } },
+        })
+        for (const row of members) {
+          byEmail.set(row.user.email.toLowerCase(), {
+            name: row.user.name,
+            email: row.user.email,
+          })
+        }
+      }
+
+      await Promise.all(
+        [...byEmail.values()].map((person) =>
+          mailTo(person, {
+            category: 'workflow',
+            subject: `[${input.number}] Ready for production`,
+            text: `Dear ${person.name},
+
+A manuscript is ready for production.
+
+Manuscript ID: ${input.number}
+Title: ${input.title}
+
+${href}`,
+            html: emailLayout(
+              'Production handoff',
+              `<p>Dear ${escapeHtml(person.name)},</p>
+<p>A manuscript is ready for production.</p>
+${manuscriptBlock(input)}
+${cta('Open production file', href)}`,
+            ),
+          }),
+        ),
+      )
     })(),
   )
 }
@@ -437,6 +837,7 @@ export function notifyAuthorProofSent(input: {
       const href = appLink(`/author/submissions/${input.number}/proof`)
       await sendMail({
         to: author.email,
+        category: 'workflow',
         subject: `[${input.number}] Proof ready for review`,
         text: `Dear ${author.name},
 
@@ -472,6 +873,7 @@ export function notifyAuthorPublished(input: {
       const href = appLink(`/author/submissions/${input.number}`)
       await sendMail({
         to: author.email,
+        category: 'decision',
         subject: `[${input.number}] Manuscript published`,
         text: `Dear ${author.name},
 
@@ -504,6 +906,8 @@ export function notifyPasswordReset(input: {
       const href = appLink('/forgot-password')
       await sendMail({
         to: input.email,
+        category: 'transactional',
+        respectPrefs: false,
         subject: 'Password reset code',
         text: `Dear ${input.name},
 
@@ -553,6 +957,7 @@ export function notifyReviewerDeadlineReminder(input: {
 
       await sendMail({
         to: input.reviewerEmail,
+        category: 'deadline',
         subject,
         text: `Dear ${input.reviewerName},
 
@@ -591,6 +996,7 @@ export function notifyEditorReviewOverdue(input: {
       const href = appLink(`/editor/manuscript/${input.number}`)
       await sendMail({
         to: editor.email,
+        category: 'deadline',
         subject: `[${input.number}] Reviewer overdue`,
         text: `Dear ${editor.name},
 
@@ -639,6 +1045,7 @@ export function notifyAuthorRevisionReminder(input: {
 
       await sendMail({
         to: author.email,
+        category: 'deadline',
         subject,
         text: `Dear ${author.name},
 

@@ -34,6 +34,9 @@ const navByRole: Record<AppRole, NavItem[]> = {
   ],
   editor: [
     { to: '/editor/queue', label: 'Queue', icon: 'queue' },
+    { to: '/copyedit/queue', label: 'Copyedit', icon: 'active' },
+    { to: '/production/queue', label: 'Production', icon: 'queue' },
+    { to: '/manager/journals', label: 'Journals', icon: 'journals' },
     { to: '/notifications', label: 'Alerts', icon: 'alerts' },
     { to: '/profile', label: 'Profile', icon: 'profile' },
   ],
@@ -49,9 +52,27 @@ const navByRole: Record<AppRole, NavItem[]> = {
     { to: '/profile', label: 'Profile', icon: 'profile' },
   ],
   admin: [
+    { to: '/editor/queue', label: 'Editorial', icon: 'queue' },
+    { to: '/admin/journals', label: 'Journals', icon: 'journals' },
+    { to: '/manager/journals', label: 'Settings', icon: 'journals' },
+    { to: '/admin/users', label: 'Users', icon: 'profile' },
+    { to: '/copyedit/queue', label: 'Copyedit', icon: 'active' },
+    { to: '/production/queue', label: 'Production', icon: 'queue' },
     { to: '/admin/analytics', label: 'Analytics', icon: 'analytics' },
     { to: '/admin/portal-sync', label: 'Portal', icon: 'portal' },
-    { to: '/admin/journals', label: 'Journals', icon: 'journals' },
+    { to: '/profile', label: 'Profile', icon: 'profile' },
+  ],
+  journal_manager: [
+    { to: '/manager/journals', label: 'Settings', icon: 'journals' },
+    { to: '/editor/queue', label: 'Submissions', icon: 'queue' },
+    { to: '/copyedit/queue', label: 'Copyedit', icon: 'active' },
+    { to: '/production/queue', label: 'Production', icon: 'queue' },
+    { to: '/notifications', label: 'Alerts', icon: 'alerts' },
+    { to: '/profile', label: 'Profile', icon: 'profile' },
+  ],
+  copyeditor: [
+    { to: '/copyedit/queue', label: 'Queue', icon: 'queue' },
+    { to: '/notifications', label: 'Alerts', icon: 'alerts' },
     { to: '/profile', label: 'Profile', icon: 'profile' },
   ],
 }

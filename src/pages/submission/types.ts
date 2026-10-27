@@ -5,6 +5,8 @@ export type SubmissionAuthor = {
   name: string
   email: string
   affiliation: string
+  country: string
+  orcid: string
   corresponding: boolean
 }
 
@@ -17,13 +19,15 @@ export type UploadedFile = {
 
 export type SubmissionDraft = {
   journalId: string
+  sectionId: string
   specialIssueId: string
   articleType: string
   title: string
   abstract: string
   keywords: string
+  /** OJS “Comments for the Editor” */
+  commentsForEditor: string
   authors: SubmissionAuthor[]
-  coverLetter: string
   manuscriptFile: UploadedFile | null
   figureFiles: UploadedFile[]
   supplementaryFiles: UploadedFile[]
@@ -33,14 +37,19 @@ export type SubmissionDraft = {
   dataAvailability: string
   ethicsApproval: boolean
   ethicsDetails: string
+  /** OJS submission checklist */
+  checklistOriginal: boolean
+  checklistGuidelines: boolean
+  checklistCopyright: boolean
 }
 
+/** Mirrors OJS 3.x submission wizard stages. */
 export const wizardSteps = [
-  { id: 'journal', label: 'Journal' },
-  { id: 'details', label: 'Details' },
-  { id: 'authors', label: 'Authors' },
-  { id: 'files', label: 'Files' },
-  { id: 'ethics', label: 'Ethics' },
+  { id: 'start', label: 'Start' },
+  { id: 'metadata', label: 'Metadata' },
+  { id: 'contributors', label: 'Contributors' },
+  { id: 'files', label: 'Upload files' },
+  { id: 'declarations', label: 'Declarations' },
   { id: 'review', label: 'Review' },
 ] as const
 
@@ -50,22 +59,25 @@ export function createInitialDraft(
   user?: Pick<AuthUser, 'name' | 'email' | 'affiliation'>,
 ): SubmissionDraft {
   return {
-    journalId: 'jces',
+    journalId: 'ijdh',
+    sectionId: '',
     specialIssueId: 'none',
-    articleType: 'Research',
+    articleType: 'Research Article',
     title: '',
     abstract: '',
     keywords: '',
+    commentsForEditor: '',
     authors: [
       {
         id: 'author-1',
         name: user?.name ?? '',
         email: user?.email ?? '',
         affiliation: user?.affiliation ?? '',
+        country: '',
+        orcid: '',
         corresponding: true,
       },
     ],
-    coverLetter: '',
     manuscriptFile: null,
     figureFiles: [],
     supplementaryFiles: [],
@@ -75,6 +87,9 @@ export function createInitialDraft(
     dataAvailability: '',
     ethicsApproval: false,
     ethicsDetails: '',
+    checklistOriginal: false,
+    checklistGuidelines: false,
+    checklistCopyright: false,
   }
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { StatusBadge } from '../../components/StatusBadge'
-import { Toast } from '../../components/Toast'
+import { useToast } from '../../components/ToastProvider'
 import { DetailHeader } from '../../components/ui'
 import { statusLabels } from '../../data/mock'
 import {
@@ -22,12 +22,11 @@ const checklistDefaults = {
 export function OfficeManuscriptPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const toast = useToast()
   const [manuscript, setManuscript] = useState<ApiManuscript | null>(null)
   const [editors, setEditors] = useState<ApiEditor[]>([])
   const [loading, setLoading] = useState(true)
   const [pending, setPending] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
-
   const [checklist, setChecklist] = useState(checklistDefaults)
   const [notes, setNotes] = useState('')
   const [editorId, setEditorId] = useState('')
@@ -56,8 +55,10 @@ export function OfficeManuscriptPage() {
         setNotes(detail.manuscript.officeNotes ?? '')
       } catch (err) {
         if (!cancelled) {
+          const message = err instanceof Error ? err.message : 'Manuscript not found.'
           setManuscript(null)
-          setError(err instanceof Error ? err.message : 'Manuscript not found.')
+          setError(message)
+          toast.error(message)
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -67,7 +68,7 @@ export function OfficeManuscriptPage() {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, toast])
 
   const checklistComplete = useMemo(
     () => Object.values(checklist).every(Boolean),
@@ -100,7 +101,6 @@ export function OfficeManuscriptPage() {
 
   function toggleCheck(key: keyof typeof checklistDefaults) {
     setChecklist((prev) => ({ ...prev, [key]: !prev[key] }))
-    setError(null)
   }
 
   async function runAction(
@@ -109,7 +109,6 @@ export function OfficeManuscriptPage() {
   ) {
     if (!id) return
     setPending(true)
-    setError(null)
     try {
       await applyScreeningAction(id, {
         action,
@@ -117,21 +116,21 @@ export function OfficeManuscriptPage() {
         notes: notes.trim() || undefined,
         rejectReason: action === 'desk_reject' ? rejectReason.trim() : undefined,
       })
-      setToast(successMessage)
+      toast.success(successMessage)
       window.setTimeout(() => navigate('/office/screening'), 700)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Action failed.')
+      toast.error(err instanceof Error ? err.message : 'Action failed.')
       setPending(false)
     }
   }
 
   function handlePass() {
     if (!checklistComplete) {
-      setError('Complete the screening checklist before assigning an editor.')
+      toast.error('Complete the screening checklist before assigning an editor.')
       return
     }
     if (!editorId) {
-      setError('Please choose an editor.')
+      toast.error('Please choose an editor.')
       return
     }
     void runAction(
@@ -142,7 +141,7 @@ export function OfficeManuscriptPage() {
 
   function handleFormatting() {
     if (!notes.trim()) {
-      setError('Add internal notes describing the formatting issues.')
+      toast.error('Add internal notes describing the formatting issues.')
       return
     }
     void runAction('formatting', 'Formatting revision requested from author.')
@@ -150,7 +149,7 @@ export function OfficeManuscriptPage() {
 
   function handleReject() {
     if (!rejectReason.trim()) {
-      setError('Provide a desk-reject reason for the author letter.')
+      toast.error('Provide a desk-reject reason for the author letter.')
       return
     }
     void runAction('desk_reject', 'Manuscript desk-rejected.')
@@ -158,8 +157,6 @@ export function OfficeManuscriptPage() {
 
   return (
     <div className="page-stack animate-rise">
-      {toast ? <Toast message={toast} tone="success" /> : null}
-
       <DetailHeader
         backTo="/office/screening"
         backLabel="← Back to screening queue"
@@ -263,10 +260,7 @@ export function OfficeManuscriptPage() {
                 rows={4}
                 value={notes}
                 disabled={!canAct || pending}
-                onChange={(e) => {
-                  setNotes(e.target.value)
-                  setError(null)
-                }}
+                onChange={(e) => setNotes(e.target.value)}
                 placeholder="Checklist findings, plagiarism score, scope concerns…"
                 className="resize-y"
               />
@@ -303,20 +297,11 @@ export function OfficeManuscriptPage() {
                 rows={3}
                 value={rejectReason}
                 disabled={!canAct || pending}
-                onChange={(e) => {
-                  setRejectReason(e.target.value)
-                  setError(null)
-                }}
+                onChange={(e) => setRejectReason(e.target.value)}
                 placeholder="Shared with the author if desk rejected"
                 className="resize-y"
               />
             </div>
-
-            {error ? (
-              <p className="mt-4 rounded-md bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">
-                {error}
-              </p>
-            ) : null}
 
             {canAct ? (
               <div className="mt-5 space-y-3">

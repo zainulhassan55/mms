@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { StatusBadge } from '../../components/StatusBadge'
-import { Toast } from '../../components/Toast'
+import { useToast } from '../../components/ToastProvider'
 import { DetailHeader } from '../../components/ui'
+import { WorkflowStageRail } from '../../components/workflow/WorkflowStageRail'
+import { ProductionAssetsPanel } from '../../components/workflow/ProductionAssetsPanel'
+import { CopyeditPanel } from '../../components/workflow/CopyeditPanel'
+import { DiscussionsPanel } from '../../components/workflow/DiscussionsPanel'
 import { statusLabels } from '../../data/mock'
 import {
   fetchManuscript,
@@ -14,6 +18,7 @@ import {
 } from '../../lib/manuscripts'
 
 export function ProductionManuscriptPage() {
+  const toast = useToast()
   const { id } = useParams()
   const [manuscript, setManuscript] = useState<ApiManuscript | null>(null)
   const [loading, setLoading] = useState(true)
@@ -24,9 +29,7 @@ export function ProductionManuscriptPage() {
   const [doi, setDoi] = useState('')
   const [volume, setVolume] = useState('')
   const [issue, setIssue] = useState('')
-  const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
 
   async function reload() {
     if (!id) return
@@ -47,8 +50,10 @@ export function ProductionManuscriptPage() {
         await reload()
       } catch (err) {
         if (!cancelled) {
+          const message = err instanceof Error ? err.message : 'Manuscript not found.'
           setManuscript(null)
-          setError(err instanceof Error ? err.message : 'Manuscript not found.')
+          setError(message)
+          toast.error(message)
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -85,24 +90,45 @@ export function ProductionManuscriptPage() {
 
   async function runAction(fn: () => Promise<void>, okMessage: string) {
     setPending(true)
-    setError(null)
-    setMessage(null)
     try {
       await fn()
-      setMessage(okMessage)
-      setToast(okMessage)
+      toast.success(okMessage)
       await reload()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Action failed.')
+      toast.error(err instanceof Error ? err.message : 'Action failed.')
     } finally {
       setPending(false)
     }
   }
 
+  const checklist = [
+    {
+      done:
+        manuscript.status !== 'accepted' && manuscript.status !== 'copyediting',
+      label: 'Copyediting complete / start production',
+    },
+    {
+      done: (manuscript.galleys?.length ?? 0) > 0,
+      label: 'Primary PDF galley recorded',
+    },
+    {
+      done: ['proof_sent', 'ready_for_publication', 'published'].includes(
+        manuscript.status,
+      ),
+      label: 'Proof sent to author',
+    },
+    {
+      done: ['ready_for_publication', 'published'].includes(manuscript.status),
+      label: 'Author approved proof',
+    },
+    {
+      done: manuscript.status === 'published',
+      label: 'Published with DOI / issue',
+    },
+  ]
+
   return (
     <div className="page-stack animate-rise">
-      {toast ? <Toast message={toast} onClose={() => setToast(null)} /> : null}
-
       <DetailHeader
         backTo="/production/queue"
         backLabel="← Back to production queue"
@@ -116,10 +142,13 @@ export function ProductionManuscriptPage() {
         subtitle={
           <>
             {manuscript.authors} · {manuscript.journal}
+            {manuscript.section ? ` · ${manuscript.section.title}` : ''}
           </>
         }
         badge={<StatusBadge status={manuscript.status} />}
       />
+
+      <WorkflowStageRail status={manuscript.status} />
 
       <div className="grid gap-6 lg:grid-cols-[1.15fr_0.95fr]">
         <div className="space-y-4">
@@ -151,16 +180,37 @@ export function ProductionManuscriptPage() {
 
           <div className="surface p-5 sm:p-6">
             <h2 className="text-sm font-semibold tracking-wide text-ink-500 uppercase">
-              Production checklist (MVP)
+              Production checklist
             </h2>
-            <ol className="mt-3 space-y-2 text-sm text-ink-600">
-              <li>1. Start production from accepted manuscript</li>
-              <li>2. Complete copyediting / typesetting (manual)</li>
-              <li>3. Upload proof PDF and send to author</li>
-              <li>4. Wait for author approval</li>
-              <li>5. Enter DOI and mark published</li>
-            </ol>
+            <ul className="mt-3 space-y-2">
+              {checklist.map((item) => (
+                <li
+                  key={item.label}
+                  className="flex items-start gap-3 text-sm text-ink-600"
+                >
+                  <span
+                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[0.65rem] font-bold ${
+                      item.done
+                        ? 'bg-signal-100 text-signal-700'
+                        : 'bg-paper-soft text-ink-300 ring-1 ring-line'
+                    }`}
+                  >
+                    {item.done ? '✓' : ''}
+                  </span>
+                  <span className={item.done ? 'text-ink-800' : ''}>
+                    {item.label}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
+
+          <CopyeditPanel
+            manuscriptId={manuscript.id}
+            manuscriptStatus={manuscript.status}
+            canUpdate
+            onChanged={() => void reload()}
+          />
         </div>
 
         <aside className="space-y-4">
@@ -181,14 +231,16 @@ export function ProductionManuscriptPage() {
               />
             </div>
 
-            {manuscript.status === 'accepted' ? (
+            {manuscript.status === 'accepted' ||
+            manuscript.status === 'copyediting' ? (
               <button
                 type="button"
                 className="btn btn-signal w-full"
                 disabled={pending}
                 onClick={() =>
                   void runAction(
-                    () => startProduction(manuscript.id, notes).then(() => undefined),
+                    () =>
+                      startProduction(manuscript.id, notes).then(() => undefined),
                     'Production started.',
                   )
                 }
@@ -227,7 +279,7 @@ export function ProductionManuscriptPage() {
                   disabled={pending}
                   onClick={() => {
                     if (!proofFile) {
-                      setError('Please choose a proof PDF first.')
+                      toast.error('Please choose a proof PDF first.')
                       return
                     }
                     void runAction(async () => {
@@ -316,6 +368,14 @@ export function ProductionManuscriptPage() {
                     ? ` · Portal ${manuscript.portalSyncStatus}`
                     : ''}
                 </p>
+                {manuscript.journalCode ? (
+                  <Link
+                    to={`/j/${manuscript.journalCode}`}
+                    className="btn btn-ghost w-full"
+                  >
+                    View public journal page
+                  </Link>
+                ) : null}
                 <button
                   type="button"
                   className="btn btn-ghost w-full"
@@ -333,19 +393,18 @@ export function ProductionManuscriptPage() {
               </div>
             ) : null}
 
-            {error ? (
-              <p className="rounded-md bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">
-                {error}
-              </p>
-            ) : null}
-            {message ? (
-              <p className="rounded-md bg-signal-50 px-3 py-2 text-sm font-medium text-signal-700">
-                {message}
-              </p>
-            ) : null}
           </div>
         </aside>
       </div>
+
+      <ProductionAssetsPanel
+        manuscriptId={manuscript.id}
+        journalId={manuscript.journalId}
+        currentDoi={manuscript.doi}
+        onChanged={() => void reload()}
+      />
+
+      <DiscussionsPanel manuscriptId={manuscript.id} />
     </div>
   )
 }

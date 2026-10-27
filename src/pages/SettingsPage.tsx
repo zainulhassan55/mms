@@ -1,38 +1,79 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { PageHeader } from '../components/ui'
+import { useToast } from '../components/ToastProvider'
+import { apiFetch } from '../lib/api'
 
 export function SettingsPage() {
   const { user, changePassword } = useAuth()
+  const toast = useToast()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [notifyEmail, setNotifyEmail] = useState(true)
+  const [notifyDeadlines, setNotifyDeadlines] = useState(true)
+  const [notifyDecisions, setNotifyDecisions] = useState(true)
+  const [prefsPending, setPrefsPending] = useState(false)
+
+  useEffect(() => {
+    void apiFetch<{
+      ok: boolean
+      user: {
+        notifyEmail?: boolean
+        notifyDeadlines?: boolean
+        notifyDecisions?: boolean
+      }
+    }>('/api/auth/me')
+      .then((data) => {
+        setNotifyEmail(data.user.notifyEmail !== false)
+        setNotifyDeadlines(data.user.notifyDeadlines !== false)
+        setNotifyDecisions(data.user.notifyDecisions !== false)
+      })
+      .catch(() => {
+        /* keep defaults */
+      })
+  }, [])
 
   if (!user) return null
 
   async function handlePassword(event: FormEvent) {
     event.preventDefault()
-    setError(null)
-    setMessage(null)
     if (newPassword !== confirm) {
-      setError('New passwords do not match.')
+      toast.error('New passwords do not match.')
       return
     }
     setPending(true)
     try {
       await changePassword(currentPassword, newPassword)
-      setMessage('Password updated.')
+      toast.success('Password updated.')
       setCurrentPassword('')
       setNewPassword('')
       setConfirm('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update password.')
+      toast.error(err instanceof Error ? err.message : 'Could not update password.')
     } finally {
       setPending(false)
+    }
+  }
+
+  async function savePrefs() {
+    setPrefsPending(true)
+    try {
+      await apiFetch('/api/auth/notification-prefs', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          notifyEmail,
+          notifyDeadlines,
+          notifyDecisions,
+        }),
+      })
+      toast.success('Notification preferences saved.')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save preferences.')
+    } finally {
+      setPrefsPending(false)
     }
   }
 
@@ -82,37 +123,41 @@ export function SettingsPage() {
             autoComplete="new-password"
           />
         </div>
-        {error ? (
-          <p className="rounded-[var(--radius-md)] bg-rose-50 px-3 py-2 text-sm text-rose-600">
-            {error}
-          </p>
-        ) : null}
-        {message ? (
-          <p className="rounded-[var(--radius-md)] bg-signal-50 px-3 py-2 text-sm text-signal-700">
-            {message}
-          </p>
-        ) : null}
         <button type="submit" className="btn btn-signal" disabled={pending}>
           {pending ? 'Saving…' : 'Update password'}
         </button>
       </form>
 
       <div className="surface space-y-5 p-5 sm:p-6">
+        <h2 className="text-sm font-semibold tracking-wide text-ink-700 uppercase">
+          Notifications
+        </h2>
         <ToggleRow
           title="Email notifications"
           description="Receive updates when manuscript status changes."
-          defaultChecked
+          checked={notifyEmail}
+          onChange={setNotifyEmail}
         />
         <ToggleRow
           title="Deadline reminders"
           description="Remind me before revision and proof deadlines."
-          defaultChecked
+          checked={notifyDeadlines}
+          onChange={setNotifyDeadlines}
         />
         <ToggleRow
-          title="Review invitations"
-          description="Notify me when I am invited to review a manuscript."
-          defaultChecked
+          title="Decision notices"
+          description="Notify me when editorial decisions are recorded."
+          checked={notifyDecisions}
+          onChange={setNotifyDecisions}
         />
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={prefsPending}
+          onClick={() => void savePrefs()}
+        >
+          {prefsPending ? 'Saving…' : 'Save notification preferences'}
+        </button>
       </div>
 
       <div className="surface-quiet p-4 text-sm text-ink-500">
@@ -129,11 +174,13 @@ export function SettingsPage() {
 function ToggleRow({
   title,
   description,
-  defaultChecked = false,
+  checked,
+  onChange,
 }: {
   title: string
   description: string
-  defaultChecked?: boolean
+  checked: boolean
+  onChange: (value: boolean) => void
 }) {
   return (
     <label className="flex cursor-pointer items-start justify-between gap-4">
@@ -143,7 +190,8 @@ function ToggleRow({
       </span>
       <input
         type="checkbox"
-        defaultChecked={defaultChecked}
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
         className="mt-1 h-4 w-4 accent-[var(--color-signal-600)]"
       />
     </label>

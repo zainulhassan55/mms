@@ -1,14 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { StatusBadge } from '../components/StatusBadge'
+import { ManuscriptStageTracker } from '../components/workflow/ManuscriptStageTracker'
 import {
-  DataPanel,
   EmptyState,
   PageHeader,
-  ScrollArea,
-  SectionTitle,
   StatCard,
 } from '../components/ui'
+import { statusLabels } from '../data/mock'
+import {
+  activeWorkflowStageIndex,
+  workflowStages,
+} from '../lib/workflow'
 import {
   fetchMyActivity,
   fetchMyManuscripts,
@@ -38,7 +41,9 @@ export function AuthorDashboard() {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load manuscripts.')
+          setError(
+            err instanceof Error ? err.message : 'Failed to load manuscripts.',
+          )
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -50,17 +55,62 @@ export function AuthorDashboard() {
     }
   }, [])
 
-  const actionNeeded = manuscripts.filter((m) =>
-    ['revision_requested', 'proof_sent', 'draft', 'formatting_requested'].includes(
-      m.status,
-    ),
+  const actionNeeded = useMemo(
+    () =>
+      manuscripts.filter((m) =>
+        [
+          'revision_requested',
+          'proof_sent',
+          'draft',
+          'formatting_requested',
+        ].includes(m.status),
+      ),
+    [manuscripts],
   )
 
+  const activeCount = manuscripts.filter(
+    (m) => !['published', 'rejected', 'draft'].includes(m.status),
+  ).length
+  const publishedCount = manuscripts.filter(
+    (m) => m.status === 'published',
+  ).length
+
+  const sorted = useMemo(() => {
+    const rank = (m: ApiManuscript) => {
+      if (
+        [
+          'revision_requested',
+          'revision_submitted',
+          'proof_sent',
+          'formatting_requested',
+          'draft',
+        ].includes(
+          m.status,
+        )
+      )
+        return 0
+      if (m.status === 'published' || m.status === 'rejected') return 2
+      return 1
+    }
+    return [...manuscripts].sort((a, b) => rank(a) - rank(b))
+  }, [manuscripts])
+
+  const activityByManuscript = useMemo(() => {
+    const map = new Map<string, ApiActivity[]>()
+    for (const item of activity) {
+      const key = item.manuscriptId || 'unknown'
+      const list = map.get(key) ?? []
+      list.push(item)
+      map.set(key, list)
+    }
+    return map
+  }, [activity])
+
   return (
-    <div className="page-stack animate-rise">
+    <div className="page-stack mx-auto max-w-5xl animate-rise">
       <PageHeader
         title="Your manuscripts"
-        description="Track submissions from draft to publication. Items that need you stay at the top."
+        description="Each paper moves through Submission → Review → Copyediting → Production → Published. The highlighted circle is the current stage."
         actions={
           <Link to="/author/submissions/new" className="btn btn-signal">
             <PlusIcon />
@@ -77,23 +127,15 @@ export function AuthorDashboard() {
 
       <section className="grid gap-3 sm:grid-cols-3">
         <StatCard
-          label="Active"
+          label="In progress"
           tone="sky"
           icon={<DocIcon />}
-          value={
-            loading
-              ? '—'
-              : String(
-                  manuscripts.filter(
-                    (m) => !['published', 'rejected', 'draft'].includes(m.status),
-                  ).length,
-                )
-          }
+          value={loading ? '—' : String(activeCount)}
         />
         <StatCard
-          label="Needs action"
+          label="Needs your action"
           tone="amber"
-          accent
+          accent={actionNeeded.length > 0}
           icon={<AlertIcon />}
           value={loading ? '—' : String(actionNeeded.length)}
         />
@@ -101,139 +143,175 @@ export function AuthorDashboard() {
           label="Published"
           tone="green"
           icon={<CheckIcon />}
-          value={
-            loading
-              ? '—'
-              : String(manuscripts.filter((m) => m.status === 'published').length)
-          }
+          value={loading ? '—' : String(publishedCount)}
         />
       </section>
 
       {actionNeeded.length > 0 ? (
-        <DataPanel
-          title="Needs attention"
-          count={actionNeeded.length}
-          accent
-          size="sm"
-        >
-          <ul className="divide-y divide-line">
+        <section className="rounded-[var(--radius-lg)] border border-amber-200 bg-amber-50/80 px-4 py-3 sm:px-5">
+          <p className="text-sm font-semibold text-amber-900">
+            {actionNeeded.length} manuscript
+            {actionNeeded.length === 1 ? '' : 's'} need{actionNeeded.length === 1 ? 's' : ''}{' '}
+            your attention
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-2">
             {actionNeeded.map((item) => (
               <li key={item.id}>
-                <ManuscriptLink item={item} />
+                <Link
+                  to={`/author/submissions/${item.id}`}
+                  className="inline-flex items-center gap-2 rounded-md bg-paper px-3 py-1.5 text-sm font-semibold text-ink-800 ring-1 ring-amber-100 hover:text-signal-800"
+                >
+                  {item.id}
+                  <span className="font-medium text-amber-700">
+                    {statusLabels[item.status as keyof typeof statusLabels] ??
+                      item.status}
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>
-        </DataPanel>
+        </section>
       ) : null}
 
-      <section className="grid gap-6 lg:grid-cols-[1.45fr_0.9fr]">
-        <DataPanel
-          title="Submissions"
-          count={loading ? undefined : manuscripts.length}
-          size="lg"
-          scroll={!loading && manuscripts.length > 0}
-        >
-          {loading ? (
-            <EmptyState title="Loading">Loading manuscripts…</EmptyState>
-          ) : manuscripts.length === 0 ? (
-            <EmptyState title="No submissions yet">
-              <Link
-                to="/author/submissions/new"
-                className="font-semibold text-signal-600 hover:text-signal-700"
-              >
-                Start your first one
-              </Link>
-            </EmptyState>
-          ) : (
-            <ul className="divide-y divide-line">
-              {manuscripts.map((item) => (
-                <li key={item.id}>
-                  <ManuscriptLink item={item} showAuthors />
-                </li>
-              ))}
-            </ul>
-          )}
-        </DataPanel>
-
-        <aside>
-          <SectionTitle title="Recent activity" />
-          <div className="surface overflow-hidden">
-            {loading ? (
-              <p className="px-4 py-6 text-sm text-ink-500">Loading…</p>
-            ) : activity.length === 0 ? (
-              <p className="px-4 py-6 text-sm text-ink-500">No activity yet.</p>
-            ) : (
-              <ScrollArea size="md">
-                <ol className="space-y-4 p-4">
-                  {activity.map((item, index) => (
-                    <ActivityItem
-                      key={item.id}
-                      item={item}
-                      last={index === activity.length - 1}
-                    />
-                  ))}
-                </ol>
-              </ScrollArea>
-            )}
+      <section className="space-y-4">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <h2 className="font-display text-xl font-semibold text-ink-800">
+              Submissions
+            </h2>
+            <p className="mt-1 text-sm text-ink-500">
+              Progress is shown on every paper. Open a manuscript for full history.
+            </p>
           </div>
-        </aside>
+          {!loading ? (
+            <p className="text-sm font-medium text-ink-400">
+              {manuscripts.length} total
+            </p>
+          ) : null}
+        </div>
+
+        {loading ? (
+          <div className="surface px-5 py-10 text-center text-sm text-ink-500">
+            Loading manuscripts…
+          </div>
+        ) : manuscripts.length === 0 ? (
+          <EmptyState title="No submissions yet">
+            <p className="mb-3 text-sm text-ink-500">
+              When you submit a paper, it appears here with a live stage tracker.
+            </p>
+            <Link
+              to="/author/submissions/new"
+              className="font-semibold text-signal-600 hover:text-signal-700"
+            >
+              Start your first submission →
+            </Link>
+          </EmptyState>
+        ) : (
+          <ul className="space-y-4">
+            {sorted.map((item) => (
+              <li key={item.id}>
+                <ManuscriptCard
+                  item={item}
+                  recent={activityByManuscript.get(item.id)?.slice(0, 3) ?? []}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </div>
   )
 }
 
-function ManuscriptLink({
+function ManuscriptCard({
   item,
-  showAuthors = false,
+  recent,
 }: {
   item: ApiManuscript
-  showAuthors?: boolean
+  recent: ApiActivity[]
 }) {
-  return (
-    <Link to={`/author/submissions/${item.id}`} className="icon-row">
-      <span className="icon-row-glyph" aria-hidden>
-        <DocIcon />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-semibold text-signal-600">
-          {item.id}
-          <span className="text-ink-300"> · </span>
-          <span className="text-ink-500">{item.journal}</span>
-        </p>
-        <p className="mt-0.5 truncate font-semibold text-ink-800">{item.title}</p>
-        {showAuthors ? (
-          <p className="mt-0.5 truncate text-sm text-ink-500">{item.authors}</p>
-        ) : null}
-      </div>
-      <div className="flex shrink-0 flex-col items-end gap-1.5">
-        <StatusBadge status={item.status} compact />
-        <p className="text-xs text-ink-300">Updated {item.updatedAt}</p>
-      </div>
-    </Link>
-  )
-}
+  const stageIdx = activeWorkflowStageIndex(item.status)
+  const stageLabel =
+    item.status === 'rejected'
+      ? 'Declined'
+      : workflowStages[Math.max(stageIdx, 0)]?.label ?? 'Submission'
+  const needsYou = [
+    'revision_requested',
+    'proof_sent',
+    'draft',
+    'formatting_requested',
+  ].includes(item.status)
 
-function ActivityItem({
-  item,
-  last,
-}: {
-  item: ApiActivity
-  last: boolean
-}) {
   return (
-    <li className="relative flex gap-3 pl-1">
-      {!last ? (
-        <span className="absolute top-3 left-[0.55rem] h-[calc(100%+0.5rem)] w-px bg-line" />
+    <article
+      className={`overflow-hidden rounded-[var(--radius-lg)] border bg-paper transition ${
+        needsYou
+          ? 'border-amber-200 shadow-[0_10px_30px_-18px_rgba(180,83,9,0.45)]'
+          : 'border-line'
+      }`}
+    >
+      <Link
+        to={`/author/submissions/${item.id}`}
+        className="block px-4 pt-4 pb-3 sm:px-5 sm:pt-5"
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold tracking-wide text-signal-700 uppercase">
+              {item.id}
+              <span className="text-ink-300"> · </span>
+              <span className="font-medium normal-case text-ink-500">
+                {item.journal}
+              </span>
+            </p>
+            <h3 className="mt-1 font-display text-lg leading-snug font-semibold text-ink-800">
+              {item.title}
+            </h3>
+            <p className="mt-1 truncate text-sm text-ink-500">{item.authors}</p>
+          </div>
+          <div className="flex shrink-0 flex-col items-start gap-1.5 sm:items-end">
+            <StatusBadge status={item.status} compact />
+            <p className="text-xs text-ink-400">
+              Stage: <span className="font-semibold text-ink-700">{stageLabel}</span>
+            </p>
+            <p className="text-xs text-ink-300">Updated {item.updatedAt}</p>
+          </div>
+        </div>
+
+        <div className="mt-5 border-t border-line/80 pt-4">
+          <ManuscriptStageTracker status={item.status} />
+        </div>
+      </Link>
+
+      {recent.length > 0 ? (
+        <div className="border-t border-line bg-paper-soft/70 px-4 py-3 sm:px-5">
+          <p className="text-[0.65rem] font-semibold tracking-wide text-ink-400 uppercase">
+            Latest for this paper
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {recent.map((event) => (
+              <li
+                key={event.id}
+                className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm"
+              >
+                <span className="font-medium text-ink-700">{event.label}</span>
+                <span className="text-xs text-ink-400">{event.at}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
-      <span className="relative mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-signal-500 ring-4 ring-signal-50" />
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-ink-800">{item.label}</p>
-        <p className="mt-0.5 text-sm text-ink-500">{item.detail}</p>
-        <p className="mt-1 text-xs font-medium text-ink-300">
-          {item.manuscriptId} · {item.at}
-        </p>
-      </div>
-    </li>
+
+      {needsYou ? (
+        <div className="border-t border-amber-100 bg-amber-50/50 px-4 py-2.5 sm:px-5">
+          <Link
+            to={`/author/submissions/${item.id}`}
+            className="text-sm font-semibold text-amber-800 hover:text-amber-950"
+          >
+            Action required — open manuscript →
+          </Link>
+        </div>
+      ) : null}
+    </article>
   )
 }
 
@@ -259,7 +337,12 @@ function DocIcon() {
         strokeWidth="1.7"
         strokeLinejoin="round"
       />
-      <path d="M14 3v4h4" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path
+        d="M14 3v4h4"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }

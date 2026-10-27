@@ -1,0 +1,140 @@
+Manuscript Suitability
+All submitted manuscripts must be within the scope of the journal. Authors are strongly encouraged to review the Aims and Scope (found in the menu: About the Journal → Aims and Scope) before submission to ensure suitability.
+Templates
+International Journal of Digital Health (IJDH)
+ accepts submissions in any format, and also recommends the use of the following templates, though it is not mandatory.
+Template in 
+LaTex
+:
+   
+Template in MS Word:
+    
+Author Biography Template:
+    
+Article Types
+The journal publishes Research Articles, Reviews, Editorials, Communications, Perspectives, Commentaries, Letters, and Reports. All papers must be written in English and must follow a clear concise style. The language editors may have to check the language and grammar of your submitted manuscript and make editorial changes if deemed necessary.
+Research Article
+A Research article is a detailed technical report of an original study that is likely to impact its field. It is a primary report where authors collect and analyze data and draw conclusions from the results leading to an original study in the literature. Research articles incorporate a comprehensive list of elements i.e., Title, Keywords, Authors and Affiliations, Abstract, a substantive Introduction, Material and Methods, Results, Discussion and Conclusion. There is no specific word count limitation; however, manuscripts must be as concise as possible.
+Review Article
+A Review article is a paper based on 
+other
+ published research. It is a secondary source. It does not report original research but rather critically evaluate previously published material. Typically, a review article analyzes or synthesizes existing literature on a subject with the aim of expanding on its current understanding or sums up the already existing work to relate it to its present status and suggest new research directions. Structured reviews and meta-analyses should use the same 
+structure as research articles and adhere to the PRISMA guidelines, and authors should also include a completed PRISMA checklist and flow diagram as supporting files.
+Editorial
+Editorials are short personal perspectives about topics relevant to the journal’s aims and gateways. Editorials are not formally Peer-reviewed and must not include new research and data. They are evaluated by the editorial team in-house, if 
+necessary
+ in consultation with advisory board members.
+Communication
+Communications are short and rapid reports of novel findings of immediate significance. They prioritize speed and concision, typically with limited word count, figures and references. Methods should be sufficient for replication; extended details may be placed in Supplementary Materials.
+Perspective
+Perspectives are expert, forward-looking viewpoints that contextualize a field, synthesize emerging trends, and outline future research directions. They do not present substantial new datasets but may include conceptual frameworks or illustrative analyses.
+Commentary
+Commentaries provide focused scholarly opinions, critiques, or discussions on specific publications, policies, methods, or timely issues relevant to the journal’s scope. They generally do not include new primary data and may be invited or considered at the editor’s discretion.
+Letter
+Letters are concise communications to the editor, often addressing or clarifying issues raised by recently published articles in 
+IJDH
+, or briefly reporting noteworthy observations. They should be succinct and well-referenced.
+Report
+Reports present technical advances, datasets, field results, case studies, benchmarks, or protocols with clear utility to the research community. They should include sufficient methodological detail and availability statements to ensure reproducibility and reuse.
+Manuscript Requirements
+All manuscripts must be submitted via the online system. Manuscripts submitted for publication must be prepared according to the guideline given below.
+This guideline is intended to assist authors in preparing their manuscripts. To prevent avoidable delays in the review and typesetting process, 
+IJDH
+ asks and encourages authors to read carefully the guidelines before writing the manuscript.
+1. Title and Author Information
+The title of the paper should be in bold, at the top of the page. Capitalize the first letter of each notional word of the title (title case format).
+Provide full names of all authors and their affiliations. The author line should be centered.
+Authors should be numbered according to their affiliations. There should be no space between the author’s name and the number.
+Use a comma “,” to separate each author, use “and” to separate the last two authors.
+If there are only two authors in the author line, use “and” to separate them.
+Authors should provide their full names in the author line.
+Affiliations should include the authors’ Departments, Institutes, Cities 
+Zipcodes
+ and Countries.
+Corresponding author should be marked with the superscript *.
+2. Abstract
+Abstract of a paper is typically 200 to 500 words in length, and 150 to 300 words for other type.
+Abstract should be one continuous (not structured) paragraph and should not include reference citations.
+Abbreviations should be defined in full the first time they appear. They could be then used, quoted in-between parentheses.
+3. Keywords
+Three keywords are the minimum required. Use a comma "," between each keyword.
+Unless it is a proper noun or there are special requirements, all keywords should be in lowercase.
+4. Structure
+A paper for publication should be divided into multiple sections: a Title, Full names of all the authors including their affiliations, a concise Abstract, a list of Keywords, Main text (including figures, equations, and tables), Data Availability Statement, Funding Statement, Conflict of Interests, Ethical Approval and Consent to Participate, References, and Appendix.
+If AI tools were used in the manuscript preparation process, an AI usage statement should also be included.
+5. Equations and Mathematical Expressions
+Equations and mathematical expressions must be inserted into the main text.
+Two different types of styles can be used: In-Line style, and Display style.
+Use either the Microsoft Equation Editor or the 
+MathType
+ add-on. Math equations should be editable text, and not images.
+6. Figures and Tables
+Figures and tables should be inserted in the text of the manuscript. Figures should have relevant legends and should not contain the same information already covered in the main text. Figures (diagrams and pictures) should be numbered consecutively using Arabic numbers. They should be placed in the text soon after the point where they are referenced. Figures must be submitted in digital format, with resolution higher than 300 dpi.
+All figures and tables must be cited/referenced in the body of the text.
+7. Citations
+All references should be cited in the main text, sequentially.
+For citations of references, please use square brackets and consecutive numbers, e.g., [1], [2,3], [4–6].
+Only the first author is cited, such as Frank [1]. If the cited reference has more than one author, please omit the rest of the authors using et al., such as Frank et al. [7], 
+Wang et al. [4–6]. Do not use “Ref.” or “reference” except at the beginning of a sentence: “Reference [3] shows ...
+” .
+If the cited reference contains more than 2 consecutive references, the format should be: please see the example, [1–3], [4–6]. It is better not to cite more than 5 consecutive references.
+No citation to the page number should be used.
+Please do not use automatic endnotes in Word, rather, type the reference list at the end of the paper using the “References” style.
+All references must be relevant to the content of the manuscript.
+8. Declarations
+Submitted manuscripts should, where appropriate, contain the following parts right before the list of references:
+8.1 Data Availability Statement
+This statement should make clear how readers can access the data used in the study and explain why any unavailable data cannot be released.
+8.2 Funding Statement
+Authors should describe sources of funding that have supported the work, including specific grant numbers, initials of authors who received the grant, and the URLs to sponsors’ websites. If there is no funding support, please write “This work was supported without any funding”.
+8.3 Conflicts of Interest
+Authors must declare all conflicts of interest. If there 
+is
+ no conflicts of interest, it should also be declared as in ex, please write “The authors declare no conflicts of interest”.
+8.4 Ethical Approval and Consent to Participate
+(Non-Biological or Non-Medical manuscripts do not need to write this part)
+Guidelines for ethical approval statements may differ based on the journal, a standard ethical approval statement will usually include:
+Whether or not the study included human or animal subjects. In all cases, the ethical approval status of the work should be stated in the ethical approval statement.
+The committee which approved the study.
+The compliance documents. What policies, declarations, acts, etc.
+Persistent identifier: reference or approval number. Include the registration ID/reference number if applicable.
+8.5 Supplementary Materials
+Supplementary Materials should be uploaded separately on submission. The supplementary files will also be available to the referees as part of the peer-review process. Any file format is acceptable; however, we recommend that common, non-proprietary formats are used where possible.
+Supplementary materials should be clean, without tracked changes, highlights, comments or line numbers.
+Supplementary figures must be clear and readable, and we recommend a minimum resolution of 300 dpi, figure legends must be clear and accurate.
+Supplementary materials must be mentioned in the main text. The citation format of Supplementary Figure, Table, Equation, etc., should start with a prefix S (i.e., Fig. S1, Eq. (S2), Table S1, etc.).
+9. References
+All references numbers are set flush left and form a column of their own, hanging out beyond the body of the reference. References must use APA format.
+10. Appendix
+Authors that need to include an appendix section should place it after the References section. Multiple appendices should all have headings in the style used above. They will be ordered A, B, and C etc.
+11. Units and Symbols
+There should be a space between the unit and Arabic number: 5 mm NOT 5mm.
+There should be a space before and after the operator: 3 cm × 5 cm NOT 3cm × 5cm.
+Please use Arabic number and relevant unit in the manuscript: 5 kg NOT five kilograms or 5 kilograms or five kg.
+Do not use hyphen/dash or any connector symbol between the value and its unit: 5 kg NOT 5–kg.
+Please clarify all units during a calculation or a mathematical relationship: 3 cm × 5 cm NOT 3 × 5 cm, 123 g ± 2 g or (123 ± 2) g NOT 123 ± 2 g, 70%–85% NOT 70–85%.
+Greek letters must be inserted using the correct Greek symbol (using Times, Helvetica or Symbol font), NOT written in full, i.e., alpha: α; beta: β, ß, (available in Times and Helvetica); and gamma: γ, etc.
+12. Chemical Compounds
+12.1 Chemical and Chemical Nomenclature and Abbreviations
+Authors should provide the exact structure of the chemical compound, and if there are appeared as new chemical compounds, authors should submit the small-molecule crystallographic data to the Cambridge Structural Database (CSD) and deposit relevant information to PubChem. The final version of the manuscript should contain the accession codes. When possible, authors should use systematic nomenclature to identify chemical compounds, and biomolecules using IUPAC is preferred. Standard chemical and chemical abbreviations should be used. Chemical structures should be included as high-resolution files according to Cell Press Figure Guidelines.
+12.2 Combinatorial Compound Libraries
+The authors should include standard characterization data for a diverse panel of library components when describing the preparation of combinatorial libraries in the manuscript.
+12.3 Chemical Structures for Organic and Organometallic Compounds
+Chemical structures for organic and organometallic compounds should be established through spectroscopic analysis. The authors should provide standard peak listings for both 1H NMR and proton-decoupled 13C NMR for all new compounds. Other NMR data, when appropriate, such as 31P NMR, 19F NMR, etc. should be reported. For the identification of functional groups, both UV and IR spectral data should be reported when appropriate. For crystalline materials, melting-point ranges should be included. For the analysis of chiral compounds, 
+specific rotations should be reported. For known compounds, authors should provide detailed references.
+12.4 Spectral Data
+Detailed spectral data for new compounds should be provided in the Materials and methods section. The authors should explain how specific, unambiguous NMR assignments were made in the Materials and methods section.
+12.5 Crystallographic Data for Small Molecules
+For crystallographic data for small molecules, authors should provide a standard crystallographic information file (CIF) and a structural figure with probability ellipsoids. The authors should check the CIF using the International Union of Crystallography (
+IUCr
+) 
+checkCIF
+. For the structure, the structure factors must be included either in the main CIF or in a separate CIF. Crystallographic data for small molecules should be submitted to the Cambridge Crystallographic Data Centre (CCDC), and the accession number must be referenced in the manuscript.
+12.6 Biomolecular Materials
+Manuscripts reporting new biomolecular structures should contain a table summarizing structural and refinement statistics. If suitable, high-field NMR or X-ray crystallography may also be used. For new biopolymeric materials (e.g., oligosaccharides, peptides, nucleic acids, etc.), if it is not possible for structural analysis by NMR spectroscopic methods. Authors must provide evidence of the identity based on sequence (when appropriate) and mass spectral characterization.
+12.7 Biological Constructs
+Authors should provide sequencing or functional data that validates the identity of their biological constructs (plasmids, fusion proteins, site-directed mutants) upon request.
+12.8 Polymers
+For new materials, as well as 1H NMR and 13C NMR, the mass spectral analysis should be used to support the identification of molecular weight. Ideally, high-resolution mass spectral (HRMS) data are preferred.
+12.9 Nanomaterials
+The authors must provide a detailed characterization of both individual objects and bulk composition.

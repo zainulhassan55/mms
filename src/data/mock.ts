@@ -5,6 +5,8 @@ export type AppRole =
   | 'reviewer'
   | 'production'
   | 'admin'
+  | 'journal_manager'
+  | 'copyeditor'
 
 export type PortalSyncStatus = 'pending' | 'synced' | 'failed'
 
@@ -14,7 +16,9 @@ export type ManuscriptStatus =
   | 'formatting_requested'
   | 'under_review'
   | 'revision_requested'
+  | 'revision_submitted'
   | 'accepted'
+  | 'copyediting'
   | 'in_production'
   | 'proof_sent'
   | 'ready_for_publication'
@@ -138,7 +142,9 @@ export const statusLabels: Record<ManuscriptStatus, string> = {
   formatting_requested: 'Formatting revision requested',
   under_review: 'Under peer review',
   revision_requested: 'Revision required',
+  revision_submitted: 'Revision submitted — with Editor in Chief',
   accepted: 'Accepted',
+  copyediting: 'Copyediting',
   in_production: 'In production',
   proof_sent: 'Proof ready for your approval',
   ready_for_publication: 'Ready for publication',
@@ -166,7 +172,9 @@ export const roleLabels: Record<AppRole, string> = {
   editor: 'Editor',
   reviewer: 'Reviewer',
   production: 'Production Editor',
-  admin: 'Publisher Admin',
+  admin: 'Editor in Chief',
+  journal_manager: 'Journal Manager',
+  copyeditor: 'Copyeditor',
 }
 
 export const editors: EditorOption[] = [
@@ -246,10 +254,22 @@ export const rolePersonas: Record<
     initials: 'JB',
   },
   admin: {
-    name: 'Alex Morgan',
+    name: 'Editor in Chief',
     email: 'admin@publisher.example',
-    affiliation: 'Publisher Operations',
-    initials: 'AM',
+    affiliation: 'IJDH Editorial Office',
+    initials: 'EIC',
+  },
+  journal_manager: {
+    name: 'Journal Manager',
+    email: 'manager@publisher.example',
+    affiliation: 'Journal Operations',
+    initials: 'JM',
+  },
+  copyeditor: {
+    name: 'Casey Copeland',
+    email: 'copyedit@publisher.example',
+    affiliation: 'Publisher Copyediting',
+    initials: 'CC',
   },
 }
 

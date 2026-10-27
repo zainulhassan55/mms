@@ -1,38 +1,68 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { homePathForRole, useAuth } from '../auth/AuthContext'
 import { BrandMark } from '../components/BrandMark'
 import { PasswordInput } from '../components/PasswordInput'
-import { Toast } from '../components/Toast'
+import { useToast } from '../components/ToastProvider'
+
+const PORTAL_JOURNAL_KEY = 'mms.portalJournal'
+
+function isSafeInternalPath(path: string) {
+  return path.startsWith('/') && !path.startsWith('//')
+}
+
+function buildRedirectTarget(next: string | null, journal: string | null) {
+  if (!next || !isSafeInternalPath(next)) return null
+
+  if (!journal) return next
+
+  const url = new URL(next, window.location.origin)
+  if (!url.searchParams.get('journal')) {
+    url.searchParams.set('journal', journal)
+  }
+  return `${url.pathname}${url.search}`
+}
 
 export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const { login } = useAuth()
-  const locationState = (location.state as {
-    registered?: boolean
-    email?: string
-    from?: string
-  } | null) ?? null
+  const toast = useToast()
+  const locationState =
+    (location.state as {
+      registered?: boolean
+      email?: string
+      from?: string
+    } | null) ?? null
+
+  const nextParam = searchParams.get('next')
+  const journalParam = searchParams.get('journal')
 
   const [email, setEmail] = useState(locationState?.email ?? '')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const [toast, setToast] = useState<string | null>(
-    locationState?.registered
-      ? 'Sign up successful. Please sign in with your new account.'
-      : null,
-  )
-  const [redirectAfterLogin] = useState(
-    locationState?.from && locationState.from !== '/login'
-      ? locationState.from
-      : null,
-  )
+
+  const redirectAfterLogin = useMemo(() => {
+    const fromQuery = buildRedirectTarget(nextParam, journalParam)
+    if (fromQuery) return fromQuery
+
+    if (locationState?.from && locationState.from !== '/login') {
+      return locationState.from
+    }
+
+    return null
+  }, [nextParam, journalParam, locationState?.from])
+
+  useEffect(() => {
+    if (journalParam) {
+      sessionStorage.setItem(PORTAL_JOURNAL_KEY, journalParam)
+    }
+  }, [journalParam])
 
   useEffect(() => {
     if (locationState?.registered) {
-      navigate(location.pathname, {
+      navigate(location.pathname + location.search, {
         replace: true,
         state: redirectAfterLogin ? { from: redirectAfterLogin } : {},
       })
@@ -40,20 +70,20 @@ export function LoginPage() {
   }, [
     locationState?.registered,
     location.pathname,
+    location.search,
     navigate,
     redirectAfterLogin,
   ])
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    setError(null)
 
     if (!email.trim()) {
-      setError('Please enter your email.')
+      toast.error('Please enter your email.')
       return
     }
     if (!password) {
-      setError('Please enter your password.')
+      toast.error('Please enter your password.')
       return
     }
 
@@ -64,7 +94,7 @@ export function LoginPage() {
         replace: true,
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign in failed.')
+      toast.error(err instanceof Error ? err.message : 'Sign in failed.')
     } finally {
       setPending(false)
     }
@@ -72,10 +102,6 @@ export function LoginPage() {
 
   return (
     <div className="auth-canvas relative min-h-screen lg:grid lg:grid-cols-2">
-      {toast ? (
-        <Toast message={toast} tone="success" onClose={() => setToast(null)} />
-      ) : null}
-
       <aside className="relative z-10 hidden min-h-screen flex-col justify-between p-10 xl:p-14 lg:flex">
         <div className="animate-rise">
           <BrandMark variant="light" size="lg" />
@@ -158,12 +184,6 @@ export function LoginPage() {
               </Link>
             </div>
 
-            {error ? (
-              <p className="rounded-[0.7rem] bg-rose-50 px-3 py-2 text-sm text-rose-600">
-                {error}
-              </p>
-            ) : null}
-
             <button
               type="submit"
               className="btn btn-signal w-full"
@@ -176,7 +196,7 @@ export function LoginPage() {
           <p className="mt-7 text-center text-sm text-ink-500">
             New here?{' '}
             <Link
-              to="/register"
+              to={{ pathname: '/register', search: location.search }}
               className="font-semibold text-signal-700 underline decoration-signal-400/40 underline-offset-4 hover:text-signal-600"
             >
               Create an account

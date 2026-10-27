@@ -11,7 +11,9 @@ import {
 import {
   notifyEditorInvitationResponse,
   notifyEditorReviewSubmitted,
+  notifyReviewerDeadlineReminder,
 } from '../lib/workflowEmails.js'
+import { canManageEditorial } from '../lib/journalAccess.js'
 
 const router = Router()
 
@@ -231,6 +233,153 @@ router.post(
       res.status(500).json({
         ok: false,
         error: error instanceof Error ? error.message : 'Failed to respond',
+      })
+    }
+  },
+)
+
+router.post(
+  '/:id/withdraw',
+  requireAuth,
+  requireRole('editor', 'office', 'journal_manager', 'admin'),
+  async (req: AuthedRequest, res) => {
+    try {
+      const id = String(req.params.id)
+      const invitation = await prisma.reviewInvitation.findFirst({
+        where: { id },
+        include: {
+          reviewer: { select: { name: true } },
+          manuscript: true,
+          review: { select: { id: true } },
+        },
+      })
+      if (!invitation) {
+        res.status(404).json({ ok: false, error: 'Invitation not found.' })
+        return
+      }
+      if (invitation.review) {
+        res.status(400).json({
+          ok: false,
+          error: 'Cannot withdraw an invitation that already has a review.',
+        })
+        return
+      }
+      if (!['sent', 'accepted', 'overdue'].includes(invitation.status)) {
+        res.status(400).json({
+          ok: false,
+          error: 'This invitation cannot be withdrawn.',
+        })
+        return
+      }
+
+      const allowed = await canManageEditorial(req.user!, invitation.manuscript)
+      if (!allowed) {
+        res.status(403).json({ ok: false, error: 'Not allowed to withdraw.' })
+        return
+      }
+
+      await prisma.reviewInvitation.delete({ where: { id: invitation.id } })
+      await prisma.activityEvent.create({
+        data: {
+          manuscriptId: invitation.manuscriptId,
+          actorId: req.user!.id,
+          label: 'Invitation withdrawn',
+          detail: `Withdrawn invitation for ${invitation.reviewer.name}.`,
+        },
+      })
+
+      res.json({ ok: true })
+    } catch (error) {
+      res.status(500).json({
+        ok: false,
+        error: error instanceof Error ? error.message : 'Failed to withdraw',
+      })
+    }
+  },
+)
+
+router.post(
+  '/:id/remind',
+  requireAuth,
+  requireRole('editor', 'office', 'journal_manager', 'admin'),
+  async (req: AuthedRequest, res) => {
+    try {
+      const id = String(req.params.id)
+      const invitation = await prisma.reviewInvitation.findFirst({
+        where: { id },
+        include: {
+          reviewer: { select: { name: true, email: true } },
+          manuscript: {
+            include: { journal: { select: { name: true } } },
+          },
+          review: { select: { id: true } },
+        },
+      })
+      if (!invitation) {
+        res.status(404).json({ ok: false, error: 'Invitation not found.' })
+        return
+      }
+      if (invitation.review) {
+        res.status(400).json({
+          ok: false,
+          error: 'Review already submitted — no reminder needed.',
+        })
+        return
+      }
+      if (!['sent', 'accepted', 'overdue'].includes(invitation.status)) {
+        res.status(400).json({
+          ok: false,
+          error: 'Cannot remind on this invitation.',
+        })
+        return
+      }
+
+      const allowed = await canManageEditorial(req.user!, invitation.manuscript)
+      if (!allowed) {
+        res.status(403).json({ ok: false, error: 'Not allowed to remind.' })
+        return
+      }
+
+      const deadline = invitation.deadline.toISOString().slice(0, 10)
+      const overdue = invitation.deadline.getTime() < Date.now()
+      notifyReviewerDeadlineReminder({
+        reviewerEmail: invitation.reviewer.email,
+        reviewerName: invitation.reviewer.name,
+        number: invitation.manuscript.number,
+        title: invitation.manuscript.title,
+        journalName: invitation.manuscript.journal?.name,
+        deadline,
+        kind: overdue ? 'overdue' : 'upcoming',
+        status:
+          invitation.status === 'overdue'
+            ? 'overdue'
+            : invitation.status === 'accepted'
+              ? 'accepted'
+              : 'sent',
+      })
+
+      await prisma.reviewInvitation.update({
+        where: { id: invitation.id },
+        data: {
+          lastReminderAt: new Date(),
+          reminderCount: { increment: 1 },
+        },
+      })
+
+      await prisma.activityEvent.create({
+        data: {
+          manuscriptId: invitation.manuscriptId,
+          actorId: req.user!.id,
+          label: 'Reviewer reminded',
+          detail: `Reminder sent to ${invitation.reviewer.name}.`,
+        },
+      })
+
+      res.json({ ok: true })
+    } catch (error) {
+      res.status(500).json({
+        ok: false,
+        error: error instanceof Error ? error.message : 'Failed to send reminder',
       })
     }
   },

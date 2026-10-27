@@ -19,18 +19,18 @@ export function BrandMark({
   const sizes = sizeMap[size]
 
   return (
-    <div className="inline-flex items-center gap-3">
+    <div className="inline-flex shrink-0 items-center gap-3">
       <span
-        className={`relative grid ${sizes.mark} place-items-center overflow-hidden rounded-[0.85rem] font-semibold tracking-tight ${
+        className={`relative grid ${sizes.mark} shrink-0 place-items-center overflow-hidden rounded-[0.85rem] font-semibold tracking-tight ${
           isLight
             ? 'bg-white/15 ring-1 ring-white/25'
             : 'bg-signal-600 shadow-[0_8px_20px_rgba(14,116,105,0.22)]'
         }`}
-        style={{ color: '#ffffff' }}
+        style={{ color: '#ffffff', minHeight: '2rem', minWidth: '2rem' }}
         aria-hidden
       >
         <span className="absolute inset-x-0 bottom-0 h-1/2 bg-signal-500/35" />
-        <span className="relative font-display italic leading-none">M</span>
+        <span className="relative z-[1] font-display italic leading-none">M</span>
       </span>
       {showWordmark ? (
         <div className="leading-tight">

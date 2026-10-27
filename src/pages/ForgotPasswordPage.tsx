@@ -2,22 +2,20 @@ import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { BrandMark } from '../components/BrandMark'
 import { PasswordInput } from '../components/PasswordInput'
+import { useToast } from '../components/ToastProvider'
 import { apiFetch } from '../lib/api'
 
 export function ForgotPasswordPage() {
+  const toast = useToast()
   const [email, setEmail] = useState('')
   const [token, setToken] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [step, setStep] = useState<'request' | 'reset'>('request')
-  const [message, setMessage] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
   async function handleRequest(event: FormEvent) {
     event.preventDefault()
-    setError(null)
-    setMessage(null)
     setPending(true)
     try {
       const data = await apiFetch<{
@@ -28,13 +26,13 @@ export function ForgotPasswordPage() {
         method: 'POST',
         body: JSON.stringify({ email }),
       })
-      setMessage(data.message)
+      toast.success(data.message)
       if (data.resetToken) {
         setToken(data.resetToken)
       }
       setStep('reset')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Request failed.')
+      toast.error(err instanceof Error ? err.message : 'Request failed.')
     } finally {
       setPending(false)
     }
@@ -42,10 +40,8 @@ export function ForgotPasswordPage() {
 
   async function handleReset(event: FormEvent) {
     event.preventDefault()
-    setError(null)
-    setMessage(null)
     if (newPassword !== confirm) {
-      setError('Passwords do not match.')
+      toast.error('Passwords do not match.')
       return
     }
     setPending(true)
@@ -57,9 +53,9 @@ export function ForgotPasswordPage() {
           body: JSON.stringify({ email, token, newPassword }),
         },
       )
-      setMessage(data.message)
+      toast.success(data.message)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Reset failed.')
+      toast.error(err instanceof Error ? err.message : 'Reset failed.')
     } finally {
       setPending(false)
     }
@@ -94,16 +90,6 @@ export function ForgotPasswordPage() {
                 autoComplete="email"
               />
             </div>
-            {message ? (
-              <p className="rounded-[var(--radius-md)] bg-signal-50 px-3 py-2 text-sm text-signal-700">
-                {message}
-              </p>
-            ) : null}
-            {error ? (
-              <p className="rounded-[var(--radius-md)] bg-rose-50 px-3 py-2 text-sm text-rose-600">
-                {error}
-              </p>
-            ) : null}
             <button type="submit" className="btn btn-signal w-full" disabled={pending}>
               {pending ? 'Sending…' : 'Continue'}
             </button>
@@ -152,27 +138,13 @@ export function ForgotPasswordPage() {
               onChange={setConfirm}
               autoComplete="new-password"
             />
-            {error ? (
-              <p className="rounded-[var(--radius-md)] bg-rose-50 px-3 py-2 text-sm text-rose-600">
-                {error}
-              </p>
-            ) : null}
-            {message ? (
-              <p className="rounded-[var(--radius-md)] bg-signal-50 px-3 py-2 text-sm text-signal-700">
-                {message}
-              </p>
-            ) : null}
             <button type="submit" className="btn btn-signal w-full" disabled={pending}>
               {pending ? 'Updating…' : 'Reset password'}
             </button>
             <button
               type="button"
               className="btn btn-ghost w-full"
-              onClick={() => {
-                setStep('request')
-                setMessage(null)
-                setError(null)
-              }}
+              onClick={() => setStep('request')}
             >
               Back
             </button>

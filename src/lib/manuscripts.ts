@@ -9,6 +9,9 @@ export type ApiManuscript = {
   keywords?: string | null
   journal: string
   journalCode: string
+  journalId?: string
+  sectionId?: string
+  section?: { id: string; code: string; title: string }
   articleType: string
   specialIssue?: string | null
   status: ManuscriptStatus
@@ -17,11 +20,26 @@ export type ApiManuscript = {
   version: number
   authors: string
   assignedEditor?: string
+  assignedEditorId?: string
+  commentsForEditor?: string
+  fundingStatement?: string
+  dataAvailability?: string
+  competingInterests?: string
+  ethicsNotes?: string
   officeNotes?: string
+  authorList?: Array<{
+    id: string
+    name: string
+    email: string
+    affiliation: string
+    orcid: string
+    corresponding: boolean
+  }>
   rejectReason?: string
   decision?: string
   decisionLetter?: string
   decisionAt?: string
+  lastResponseLetter?: string | null
   revisionDueAt?: string
   doi?: string
   proofFileName?: string
@@ -31,6 +49,7 @@ export type ApiManuscript = {
   portalSyncStatus?: string
   volume?: string
   issue?: string
+  issueId?: string
   reviewCount?: number
   openInviteCount?: number
   awaitingDecision?: boolean
@@ -39,6 +58,15 @@ export type ApiManuscript = {
     kind: string
     fileName: string
     sizeBytes?: number | null
+    visibility?: string
+  }>
+  reviewRounds?: Array<{ id: string; roundNumber: number; status: string }>
+  galleys?: Array<{
+    id: string
+    label: string
+    format: string
+    fileName: string
+    isPrimary: boolean
   }>
 }
 
@@ -90,6 +118,16 @@ export type ApiReview = {
   submittedAt: string
 }
 
+export type ApiEditorRecommendation = {
+  id: string
+  recommendation: string
+  note: string
+  round: number
+  createdAt: string
+  editorName: string
+  editorId: string
+}
+
 export type ApiReviewer = {
   id: string
   name: string
@@ -135,6 +173,7 @@ export async function fetchManuscript(id: string) {
     activity: ApiActivity[]
     invitations?: ApiInvitation[]
     reviews?: ApiReview[]
+    editorRecommendations?: ApiEditorRecommendation[]
   }>(`/api/manuscripts/${encodeURIComponent(id)}`)
   return data
 }
@@ -143,6 +182,7 @@ export async function createManuscript(payload: {
   status: 'draft' | 'submitted'
   title: string
   journalCode: string
+  sectionId?: string | null
   articleType: string
   abstract: string
   keywords: string
@@ -151,6 +191,7 @@ export async function createManuscript(payload: {
     name: string
     email: string
     affiliation: string
+    orcid?: string
     corresponding: boolean
   }>
   manuscriptFile?: File | null
@@ -166,6 +207,7 @@ export async function createManuscript(payload: {
       status: payload.status,
       title: payload.title,
       journalCode: payload.journalCode,
+      sectionId: payload.sectionId || null,
       articleType: payload.articleType,
       abstract: payload.abstract,
       keywords: payload.keywords,
@@ -218,6 +260,12 @@ export async function fetchJournals() {
       name: string
       issn: string | null
       description: string | null
+      sections?: Array<{
+        id: string
+        code: string
+        title: string
+        description: string | null
+      }>
     }>
   }>('/api/journals')
   return data.journals
@@ -316,6 +364,77 @@ export async function inviteReviewer(
   return data.invitation
 }
 
+export async function assignEditor(
+  manuscriptId: string,
+  editorId: string,
+) {
+  const data = await apiFetch<{ ok: boolean; manuscript: ApiManuscript }>(
+    `/api/manuscripts/${encodeURIComponent(manuscriptId)}/assign-editor`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ editorId }),
+    },
+  )
+  return data.manuscript
+}
+
+export async function withdrawInvitation(invitationId: string) {
+  await apiFetch(`/api/invitations/${encodeURIComponent(invitationId)}/withdraw`, {
+    method: 'POST',
+    body: '{}',
+  })
+}
+
+export async function remindInvitation(invitationId: string) {
+  await apiFetch(`/api/invitations/${encodeURIComponent(invitationId)}/remind`, {
+    method: 'POST',
+    body: '{}',
+  })
+}
+
+export async function addManuscriptFile(
+  manuscriptId: string,
+  payload: {
+    kind: string
+    fileName: string
+    visibility?: 'author' | 'staff' | 'review'
+    reviewRoundId?: string
+  },
+) {
+  const data = await apiFetch<{
+    ok: boolean
+    file: {
+      id: string
+      kind: string
+      fileName: string
+      visibility: string
+      sizeBytes?: number | null
+    }
+  }>(`/api/manuscripts/${encodeURIComponent(manuscriptId)}/files`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return data.file
+}
+
+export async function updateFileVisibility(
+  manuscriptId: string,
+  fileId: string,
+  visibility: 'author' | 'staff' | 'review',
+) {
+  const data = await apiFetch<{
+    ok: boolean
+    file: { id: string; kind: string; fileName: string; visibility: string }
+  }>(
+    `/api/manuscripts/${encodeURIComponent(manuscriptId)}/files/${encodeURIComponent(fileId)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ visibility }),
+    },
+  )
+  return data.file
+}
+
 export async function fetchMyInvitations(status?: string) {
   const query = status ? `?status=${encodeURIComponent(status)}` : ''
   const data = await apiFetch<{ ok: boolean; invitations: ApiInvitation[] }>(
@@ -374,6 +493,37 @@ export async function fetchMyReviews() {
     '/api/invitations/reviews',
   )
   return data.reviews
+}
+
+export async function submitEditorRecommendation(
+  manuscriptId: string,
+  payload: { recommendation: string; note: string },
+) {
+  const data = await apiFetch<{
+    ok: boolean
+    recommendation: ApiEditorRecommendation
+  }>(
+    `/api/manuscripts/${encodeURIComponent(manuscriptId)}/editor-recommendation`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+  )
+  return data.recommendation
+}
+
+export async function routeRevisionToEditor(
+  manuscriptId: string,
+  editorId?: string,
+) {
+  const data = await apiFetch<{ ok: boolean; manuscript: ApiManuscript }>(
+    `/api/manuscripts/${encodeURIComponent(manuscriptId)}/route-revision`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ editorId }),
+    },
+  )
+  return data.manuscript
 }
 
 export async function recordEditorialDecision(
@@ -530,17 +680,12 @@ export async function submitRevision(
   payload: {
     responseLetter: string
     file: File
-    reinvitePreviousReviewers?: boolean
   },
 ) {
   const form = new FormData()
   form.append('file', payload.file, payload.file.name)
   form.append('fileName', payload.file.name)
   form.append('responseLetter', payload.responseLetter)
-  form.append(
-    'reinvitePreviousReviewers',
-    payload.reinvitePreviousReviewers ? 'true' : 'false',
-  )
 
   const token = getToken()
   const headers = new Headers()

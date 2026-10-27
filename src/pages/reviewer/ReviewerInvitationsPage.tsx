@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { invitationLabels } from '../../data/mock'
 import { DataPanel, EmptyState, PageHeader } from '../../components/ui'
+import { useToast } from '../../components/ToastProvider'
 import {
   fetchMyInvitations,
   respondToInvitation,
@@ -9,9 +10,9 @@ import {
 } from '../../lib/manuscripts'
 
 export function ReviewerInvitationsPage() {
+  const toast = useToast()
   const [invitations, setInvitations] = useState<ApiInvitation[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [declineId, setDeclineId] = useState<string | null>(null)
   const [declineReason, setDeclineReason] = useState('')
@@ -25,13 +26,12 @@ export function ReviewerInvitationsPage() {
     let cancelled = false
     async function load() {
       setLoading(true)
-      setError(null)
       try {
         const items = await fetchMyInvitations('sent')
         if (!cancelled) setInvitations(items)
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load invitations.')
+          toast.error(err instanceof Error ? err.message : 'Failed to load invitations.')
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -41,7 +41,7 @@ export function ReviewerInvitationsPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [toast])
 
   async function handleRespond(
     id: string,
@@ -49,7 +49,6 @@ export function ReviewerInvitationsPage() {
     reason?: string,
   ) {
     setPendingId(id)
-    setError(null)
     try {
       await respondToInvitation(id, {
         response,
@@ -57,9 +56,10 @@ export function ReviewerInvitationsPage() {
       })
       setDeclineId(null)
       setDeclineReason('')
+      toast.success(response === 'accepted' ? 'Invitation accepted.' : 'Invitation declined.')
       await reload()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update invitation.')
+      toast.error(err instanceof Error ? err.message : 'Could not update invitation.')
     } finally {
       setPendingId(null)
     }
@@ -71,12 +71,6 @@ export function ReviewerInvitationsPage() {
         title="Pending invitations"
         description="Accept or decline review requests. Declines can include a short note for the editor."
       />
-
-      {error ? (
-        <p className="rounded-[var(--radius-lg)] bg-rose-50 px-4 py-3 text-sm text-rose-600">
-          {error}
-        </p>
-      ) : null}
 
       <DataPanel
         title="Invitations"

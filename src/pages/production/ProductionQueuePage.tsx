@@ -62,7 +62,7 @@ export function ProductionQueuePage() {
     <div className="page-stack animate-rise">
       <PageHeader
         title="Production queue"
-        description="Papers appear here only after the Editor records Accept."
+        description="OJS production stage: after copyediting is approved (or Accept with no copyedit assignment), start layout, proofs, galleys, and issue scheduling."
       />
 
       {error ? (

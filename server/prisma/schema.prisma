@@ -14,6 +14,8 @@ enum AppRole {
   reviewer
   production
   admin
+  journal_manager
+  copyeditor
 }
 
 enum ManuscriptStatus {
@@ -22,7 +24,10 @@ enum ManuscriptStatus {
   formatting_requested
   under_review
   revision_requested
+  /** Author uploaded a revision; waiting for EIC to route to an editor. */
+  revision_submitted
   accepted
+  copyediting
   in_production
   proof_sent
   ready_for_publication
@@ -50,106 +55,232 @@ enum PortalSyncStatus {
   failed
 }
 
-model User {
-  id                    String    @id @default(cuid())
-  email                 String    @unique
-  passwordHash          String?
-  passwordResetToken    String?
-  passwordResetExpires  DateTime?
-  name                  String
-  initials              String
-  role                  AppRole
-  affiliation           String?
-  expertise             String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+enum JournalMemberRole {
+  journal_manager
+  editor
+  section_editor
+  author
+  reviewer
+  copyeditor
+  production
+}
 
-  manuscriptsAuthored   Manuscript[]         @relation("SubmittingAuthor")
-  manuscriptsAssigned   Manuscript[]         @relation("AssignedEditor")
-  invitationsSent       ReviewInvitation[]   @relation("InvitationInviter")
-  invitationsReceived   ReviewInvitation[]   @relation("InvitationReviewer")
-  reviewsWritten        ReviewReport[]
-  decisionsMade         EditorialDecision[]
-  activities            ActivityEvent[]
-  coAuthorships         ManuscriptAuthor[]
+enum ReviewRoundStatus {
+  open
+  closed
+}
+
+enum CopyeditStatus {
+  assigned
+  in_progress
+  author_query
+  approved
+}
+
+enum IssueStatus {
+  planned
+  open
+  published
+}
+
+enum GalleyFormat {
+  pdf
+  html
+  xml
+  other
+}
+
+enum DiscussionAudience {
+  editorial
+  author
+  reviewer
+  copyediting
+  production
+}
+
+enum DoiDepositStatus {
+  not_submitted
+  queued
+  submitted
+  registered
+  failed
+}
+
+model User {
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  passwordHash         String?
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+  name                 String
+  initials             String
+  role                 AppRole
+  affiliation          String?
+  expertise            String?
+  orcid                String?
+  notifyEmail          Boolean   @default(true)
+  notifyDeadlines      Boolean   @default(true)
+  notifyDecisions      Boolean   @default(true)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  manuscriptsAuthored Manuscript[]         @relation("SubmittingAuthor")
+  manuscriptsAssigned Manuscript[]         @relation("AssignedEditor")
+  invitationsSent     ReviewInvitation[]   @relation("InvitationInviter")
+  invitationsReceived ReviewInvitation[]   @relation("InvitationReviewer")
+  reviewsWritten      ReviewReport[]
+  decisionsMade       EditorialDecision[]
+  editorRecommendations EditorRecommendation[]
+  activities          ActivityEvent[]
+  coAuthorships       ManuscriptAuthor[]
+  memberships         JournalMembership[]
+  copyeditAssignments CopyeditAssignment[] @relation("Copyeditor")
+  copyeditAssignedBy  CopyeditAssignment[] @relation("CopyeditAssigner")
+  discussionPosts     DiscussionPost[]
+  roundsClosed        ReviewRound[]        @relation("RoundCloser")
 }
 
 model Journal {
+  id               String   @id @default(cuid())
+  code             String   @unique
+  name             String   @unique
+  issn             String?
+  description      String?
+  contactEmail     String?
+  /** Public catalog cover image path (e.g. /covers/ijdh.jpg) or absolute URL */
+  coverImageUrl    String?
+  /** Short subject tags for catalog badges, comma-separated */
+  subjectTags      String?
+  reviewType       String   @default("double_blind")
+  defaultReviewDays Int     @default(21)
+  revisionDays     Int      @default(30)
+  policiesMarkdown String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  manuscripts  Manuscript[]
+  memberships  JournalMembership[]
+  sections     JournalSection[]
+  issues       Issue[]
+  emailTemplates EmailTemplate[]
+}
+
+model JournalMembership {
+  id        String            @id @default(cuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journalId String
+  journal   Journal           @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  role      JournalMemberRole
+  createdAt DateTime          @default(now())
+
+  @@unique([userId, journalId, role])
+  @@index([journalId])
+  @@index([userId])
+}
+
+model JournalSection {
   id          String   @id @default(cuid())
-  code        String   @unique
-  name        String   @unique
-  issn        String?
+  journalId   String
+  journal     Journal  @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  code        String
+  title       String
   description String?
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   manuscripts Manuscript[]
+
+  @@unique([journalId, code])
+  @@index([journalId])
 }
 
 model Manuscript {
-  id                 String           @id @default(cuid())
-  number             String           @unique
-  title              String
-  abstract           String?
-  keywords           String?
-  articleType        String
-  specialIssue       String?
-  status             ManuscriptStatus @default(draft)
-  version            Int              @default(1)
-  authorsText        String
-  officeNotes        String?
-  rejectReason       String?
-  decision           ReviewRecommendation?
-  decisionLetter     String?
-  decisionAt         DateTime?
-  revisionDueAt      DateTime?
+  id                     String               @id @default(cuid())
+  number                 String               @unique
+  title                  String
+  abstract               String?
+  keywords               String?
+  articleType            String
+  specialIssue           String?
+  status                 ManuscriptStatus     @default(draft)
+  version                Int                  @default(1)
+  authorsText            String
+  /** Author comments for the editor (OJS “Comments for the Editor”). */
+  commentsForEditor      String?
+  fundingStatement       String?
+  dataAvailability       String?
+  competingInterests     String?
+  ethicsNotes            String?
+  officeNotes            String?
+  rejectReason           String?
+  decision               ReviewRecommendation?
+  decisionLetter         String?
+  decisionAt             DateTime?
+  revisionDueAt          DateTime?
   lastRevisionReminderAt DateTime?
-  lastResponseLetter String?
-  doi                String?
-  proofFileName      String?
-  proofRound         Int?
-  proofCorrections   String?
-  productionNotes    String?
-  portalSyncStatus   PortalSyncStatus?
-  portalSyncedAt     DateTime?
-  volume             String?
-  issue              String?
-  submittedAt        DateTime?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  lastResponseLetter     String?
+  doi                    String?
+  proofFileName          String?
+  proofRound             Int?
+  proofCorrections       String?
+  productionNotes        String?
+  portalSyncStatus       PortalSyncStatus?
+  portalSyncedAt         DateTime?
+  volume                 String?
+  issue                  String?
+  submittedAt            DateTime?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
 
-  journalId           String
-  journal             Journal @relation(fields: [journalId], references: [id])
-  submittingAuthorId  String
-  submittingAuthor    User    @relation("SubmittingAuthor", fields: [submittingAuthorId], references: [id])
-  assignedEditorId    String?
-  assignedEditor      User?   @relation("AssignedEditor", fields: [assignedEditorId], references: [id])
+  journalId          String
+  journal            Journal         @relation(fields: [journalId], references: [id])
+  sectionId          String?
+  section            JournalSection? @relation(fields: [sectionId], references: [id])
+  submittingAuthorId String
+  submittingAuthor   User            @relation("SubmittingAuthor", fields: [submittingAuthorId], references: [id])
+  assignedEditorId   String?
+  assignedEditor     User?           @relation("AssignedEditor", fields: [assignedEditorId], references: [id])
+  issueId            String?
+  issueRecord        Issue?          @relation(fields: [issueId], references: [id])
+  issueSortOrder     Int?
 
-  authors      ManuscriptAuthor[]
-  files        ManuscriptFile[]
-  invitations  ReviewInvitation[]
-  reviews      ReviewReport[]
-  decisions    EditorialDecision[]
-  activities   ActivityEvent[]
-  portalSyncs  PortalSyncEvent[]
+  authors            ManuscriptAuthor[]
+  files              ManuscriptFile[]
+  invitations        ReviewInvitation[]
+  reviews            ReviewReport[]
+  decisions          EditorialDecision[]
+  editorRecommendations EditorRecommendation[]
+  activities         ActivityEvent[]
+  portalSyncs        PortalSyncEvent[]
+  reviewRounds       ReviewRound[]
+  copyeditAssignments CopyeditAssignment[]
+  galleys            Galley[]
+  discussions        DiscussionThread[]
+  doiDeposits        DoiDeposit[]
 
   @@index([status])
   @@index([journalId])
+  @@index([sectionId])
   @@index([submittingAuthorId])
   @@index([assignedEditorId])
+  @@index([issueId])
 }
 
 model ManuscriptAuthor {
-  id           String  @id @default(cuid())
-  manuscriptId String
-  manuscript   Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
-  userId       String?
-  user         User?   @relation(fields: [userId], references: [id])
-  name         String
-  email        String
-  affiliation  String?
-  isCorresponding Boolean @default(false)
-  sortOrder    Int     @default(0)
+  id              String     @id @default(cuid())
+  manuscriptId    String
+  manuscript      Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  userId          String?
+  user            User?      @relation(fields: [userId], references: [id])
+  name            String
+  email           String
+  affiliation     String?
+  orcid           String?
+  isCorresponding Boolean    @default(false)
+  sortOrder       Int        @default(0)
 
   @@index([manuscriptId])
 }
@@ -163,27 +294,54 @@ model ManuscriptFile {
   storagePath  String?
   mimeType     String?
   sizeBytes    Int?
+  /** author = visible to author; staff = editors only; review = anonymized for reviewers */
+  visibility   String   @default("author")
+  reviewRoundId String?
+  reviewRound  ReviewRound? @relation(fields: [reviewRoundId], references: [id], onDelete: SetNull)
   uploadedAt   DateTime @default(now())
 
+  @@index([manuscriptId])
+  @@index([reviewRoundId])
+}
+
+model ReviewRound {
+  id           String            @id @default(cuid())
+  manuscriptId String
+  manuscript   Manuscript        @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  roundNumber  Int
+  status       ReviewRoundStatus @default(open)
+  openedAt     DateTime          @default(now())
+  closedAt     DateTime?
+  closedById   String?
+  closedBy     User?             @relation("RoundCloser", fields: [closedById], references: [id])
+  notes        String?
+
+  invitations           ReviewInvitation[]
+  files                 ManuscriptFile[]
+  decisions             EditorialDecision[]
+  editorRecommendations EditorRecommendation[]
+
+  @@unique([manuscriptId, roundNumber])
   @@index([manuscriptId])
 }
 
 model ReviewInvitation {
-  id             String           @id @default(cuid())
-  manuscriptId   String
-  manuscript     Manuscript       @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
-  reviewerId     String
-  reviewer       User             @relation("InvitationReviewer", fields: [reviewerId], references: [id])
-  invitedById    String?
-  invitedBy      User?            @relation("InvitationInviter", fields: [invitedById], references: [id])
-  status         InvitationStatus @default(sent)
-  invitedAt      DateTime         @default(now())
-  deadline       DateTime
-  declineReason  String?
-  round          Int              @default(1)
-  /** Last deadline reminder email sent to the reviewer */
+  id            String           @id @default(cuid())
+  manuscriptId  String
+  manuscript    Manuscript       @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  reviewerId    String
+  reviewer      User             @relation("InvitationReviewer", fields: [reviewerId], references: [id])
+  invitedById   String?
+  invitedBy     User?            @relation("InvitationInviter", fields: [invitedById], references: [id])
+  status        InvitationStatus @default(sent)
+  invitedAt     DateTime         @default(now())
+  deadline      DateTime
+  declineReason String?
+  round         Int              @default(1)
+  reviewRoundId String?
+  reviewRound   ReviewRound?     @relation(fields: [reviewRoundId], references: [id], onDelete: SetNull)
   lastReminderAt DateTime?
-  reminderCount  Int              @default(0)
+  reminderCount Int              @default(0)
 
   review ReviewReport?
 
@@ -191,6 +349,7 @@ model ReviewInvitation {
   @@index([reviewerId])
   @@index([status])
   @@index([deadline])
+  @@index([reviewRoundId])
 }
 
 model ReviewReport {
@@ -217,28 +376,169 @@ model ReviewReport {
 }
 
 model EditorialDecision {
-  id           String               @id @default(cuid())
+  id            String               @id @default(cuid())
+  manuscriptId  String
+  manuscript    Manuscript           @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  decidedById   String
+  decidedBy     User                 @relation(fields: [decidedById], references: [id])
+  decision      ReviewRecommendation
+  letter        String
+  round         Int                  @default(1)
+  reviewRoundId String?
+  reviewRound   ReviewRound?         @relation(fields: [reviewRoundId], references: [id], onDelete: SetNull)
+  decidedAt     DateTime             @default(now())
+
+  @@index([manuscriptId])
+  @@index([reviewRoundId])
+}
+
+/** Handling editor proposal to EIC — does not notify the author. */
+model EditorRecommendation {
+  id             String               @id @default(cuid())
+  manuscriptId   String
+  manuscript     Manuscript           @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  editorId       String
+  editor         User                 @relation(fields: [editorId], references: [id])
+  recommendation ReviewRecommendation
+  note           String
+  round          Int                  @default(1)
+  reviewRoundId  String?
+  reviewRound    ReviewRound?         @relation(fields: [reviewRoundId], references: [id], onDelete: SetNull)
+  createdAt      DateTime             @default(now())
+
+  @@index([manuscriptId])
+  @@index([editorId])
+  @@index([reviewRoundId])
+}
+
+model CopyeditAssignment {
+  id             String         @id @default(cuid())
+  manuscriptId   String
+  manuscript     Manuscript     @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  copyeditorId   String
+  copyeditor     User           @relation("Copyeditor", fields: [copyeditorId], references: [id])
+  assignedById   String?
+  assignedBy     User?          @relation("CopyeditAssigner", fields: [assignedById], references: [id])
+  status         CopyeditStatus @default(assigned)
+  authorQueries  String?
+  cleanFileName  String?
+  cleanFilePath  String?
+  notes          String?
+  assignedAt     DateTime       @default(now())
+  completedAt    DateTime?
+
+  @@index([manuscriptId])
+  @@index([copyeditorId])
+}
+
+model Issue {
+  id          String      @id @default(cuid())
+  journalId   String
+  journal     Journal     @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  volume      String
+  number      String
+  year        Int
+  title       String?
+  status      IssueStatus @default(planned)
+  publishedAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  manuscripts Manuscript[]
+  galleys     Galley[]
+
+  @@unique([journalId, volume, number, year])
+  @@index([journalId])
+  @@index([status])
+}
+
+model Galley {
+  id           String       @id @default(cuid())
   manuscriptId String
-  manuscript   Manuscript           @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
-  decidedById  String
-  decidedBy    User                 @relation(fields: [decidedById], references: [id])
-  decision     ReviewRecommendation
-  letter       String
-  round        Int                  @default(1)
-  decidedAt    DateTime             @default(now())
+  manuscript   Manuscript   @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  issueId      String?
+  issue        Issue?       @relation(fields: [issueId], references: [id], onDelete: SetNull)
+  label        String
+  format       GalleyFormat @default(pdf)
+  fileName     String
+  storagePath  String?
+  mimeType     String?
+  sizeBytes    Int?
+  isPrimary    Boolean      @default(false)
+  uploadedAt   DateTime     @default(now())
+
+  @@index([manuscriptId])
+  @@index([issueId])
+}
+
+model DiscussionThread {
+  id           String              @id @default(cuid())
+  manuscriptId String
+  manuscript   Manuscript          @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  subject      String
+  audience     DiscussionAudience  @default(editorial)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  posts DiscussionPost[]
 
   @@index([manuscriptId])
 }
 
+model DiscussionPost {
+  id        String           @id @default(cuid())
+  threadId  String
+  thread    DiscussionThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User             @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime         @default(now())
+
+  @@index([threadId])
+}
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  journalId String
+  journal   Journal  @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  key       String
+  name      String
+  subject   String
+  bodyHtml  String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([journalId, key])
+  @@index([journalId])
+}
+
+model DoiDeposit {
+  id           String           @id @default(cuid())
+  manuscriptId String
+  manuscript   Manuscript       @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  doi          String
+  provider     String           @default("crossref")
+  status       DoiDepositStatus @default(not_submitted)
+  payloadPreview String?
+  responseDetail String?
+  submittedAt  DateTime?
+  registeredAt DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([manuscriptId])
+  @@index([status])
+}
+
 model ActivityEvent {
-  id           String   @id @default(cuid())
+  id           String      @id @default(cuid())
   manuscriptId String?
   manuscript   Manuscript? @relation(fields: [manuscriptId], references: [id], onDelete: SetNull)
   actorId      String?
-  actor        User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actor        User?       @relation(fields: [actorId], references: [id], onDelete: SetNull)
   label        String
   detail       String
-  createdAt    DateTime @default(now())
+  createdAt    DateTime    @default(now())
 
   @@index([manuscriptId])
   @@index([createdAt])

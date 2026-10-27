@@ -7,7 +7,10 @@ import { requireAuth, type AuthedRequest } from '../auth/middleware.js'
 import { hashPassword, verifyPassword } from '../auth/password.js'
 import { roleLabels } from '../lib/labels.js'
 import { isEmailDeliveryEnabled } from '../lib/mail.js'
-import { notifyPasswordReset } from '../lib/workflowEmails.js'
+import {
+  notifyAccountWelcome,
+  notifyPasswordReset,
+} from '../lib/workflowEmails.js'
 
 const router = Router()
 
@@ -18,6 +21,10 @@ function toPublicUser(user: {
   initials: string
   role: AppRole
   affiliation: string | null
+  notifyEmail?: boolean
+  notifyDeadlines?: boolean
+  notifyDecisions?: boolean
+  orcid?: string | null
 }) {
   return {
     id: user.id,
@@ -27,6 +34,10 @@ function toPublicUser(user: {
     role: user.role,
     roleLabel: roleLabels[user.role],
     affiliation: user.affiliation ?? '',
+    orcid: user.orcid ?? '',
+    notifyEmail: user.notifyEmail !== false,
+    notifyDeadlines: user.notifyDeadlines !== false,
+    notifyDecisions: user.notifyDecisions !== false,
   }
 }
 
@@ -56,6 +67,7 @@ router.post('/register', async (req, res) => {
     'reviewer',
     'editor',
     'production',
+    'copyeditor',
   ]
 
   // Legacy "office" registrations become the single Editor role.
@@ -105,6 +117,12 @@ router.post('/register', async (req, res) => {
       affiliation,
       expertise: role === 'reviewer' ? expertise : null,
     },
+  })
+
+  notifyAccountWelcome({
+    email: user.email,
+    name: user.name,
+    role: user.role,
   })
 
   res.status(201).json({
@@ -169,6 +187,31 @@ router.get('/me', requireAuth, async (req: AuthedRequest, res) => {
     })
   }
   res.json({ ok: true, user: toPublicUser(user) })
+})
+
+router.patch('/notification-prefs', requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: {
+        ...(typeof req.body?.notifyEmail === 'boolean'
+          ? { notifyEmail: req.body.notifyEmail }
+          : {}),
+        ...(typeof req.body?.notifyDeadlines === 'boolean'
+          ? { notifyDeadlines: req.body.notifyDeadlines }
+          : {}),
+        ...(typeof req.body?.notifyDecisions === 'boolean'
+          ? { notifyDecisions: req.body.notifyDecisions }
+          : {}),
+      },
+    })
+    res.json({ ok: true, user: toPublicUser(user) })
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      error: error instanceof Error ? error.message : 'Failed to save preferences',
+    })
+  }
 })
 
 router.post('/change-password', requireAuth, async (req: AuthedRequest, res) => {

@@ -1,6 +1,22 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { Navigate, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { homePathForRole, useAuth } from './AuthContext'
+
+function isSafeInternalPath(path: string) {
+  return path.startsWith('/') && !path.startsWith('//')
+}
+
+function buildRedirectTarget(next: string | null, journal: string | null) {
+  if (!next || !isSafeInternalPath(next)) return null
+
+  if (!journal) return next
+
+  const url = new URL(next, window.location.origin)
+  if (!url.searchParams.get('journal')) {
+    url.searchParams.set('journal', journal)
+  }
+  return `${url.pathname}${url.search}`
+}
 
 export function ProtectedRoute() {
   const { isAuthenticated, ready } = useAuth()
@@ -15,7 +31,13 @@ export function ProtectedRoute() {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />
+    const params = new URLSearchParams()
+    const next = `${location.pathname}${location.search}`
+    params.set('next', next)
+    const journal = new URLSearchParams(location.search).get('journal')
+    if (journal) params.set('journal', journal)
+
+    return <Navigate to={`/login?${params.toString()}`} replace />
   }
 
   return <Outlet />
@@ -23,6 +45,7 @@ export function ProtectedRoute() {
 
 export function GuestRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, ready, user } = useAuth()
+  const [searchParams] = useSearchParams()
 
   if (!ready) {
     return (
@@ -33,7 +56,17 @@ export function GuestRoute({ children }: { children: ReactNode }) {
   }
 
   if (isAuthenticated) {
-    return <Navigate to={homePathForRole(user?.role ?? 'author')} replace />
+    const fromQuery = buildRedirectTarget(
+      searchParams.get('next'),
+      searchParams.get('journal'),
+    )
+
+    return (
+      <Navigate
+        to={fromQuery ?? homePathForRole(user?.role ?? 'author')}
+        replace
+      />
+    )
   }
 
   return children

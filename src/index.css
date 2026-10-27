@@ -435,6 +435,59 @@
   animation: fade-in 0.6s ease both;
 }
 
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(1.25rem) translateY(-0.35rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(1rem) scale(0.96);
+  }
+}
+
+@keyframes toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.toast-item-enter {
+  animation: toast-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.toast-item-leave {
+  animation: toast-out 0.2s ease forwards;
+}
+
+.toast-progress {
+  animation-name: toast-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-item-enter,
+  .toast-item-leave,
+  .toast-progress {
+    animation: none;
+  }
+}
+
 .animate-pulse-soft {
   animation: pulse-soft 2.4s ease-in-out infinite;
 }

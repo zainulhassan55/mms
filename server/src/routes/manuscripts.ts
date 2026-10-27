@@ -11,6 +11,13 @@ import {
   toClientManuscript,
 } from '../lib/manuscripts.js'
 import {
+  getUserJournalIds,
+  ensureMembership,
+  canManageEditorial,
+  isGlobalAdmin,
+} from '../lib/journalAccess.js'
+import { ensureOpenReviewRound } from '../lib/reviewRounds.js'
+import {
   invitationInclude,
   toClientInvitation,
   toClientReview,
@@ -32,8 +39,11 @@ import {
   notifyAuthorPublished,
   notifyDeskRejected,
   notifyEditorialDecision,
+  notifyEditorRevisionRouted,
   notifyEditorRevisionSubmitted,
+  notifyEicEditorRecommendation,
   notifyFormattingRequested,
+  notifyProductionHandoff,
   notifyReviewerInvitation,
   notifySubmissionReceived,
   notifyUnderReview,
@@ -83,40 +93,73 @@ function formatAuthorsText(authors: AuthorInput[]) {
 router.get(
   '/',
   requireAuth,
-  requireRole('author', 'office', 'editor', 'production', 'admin'),
+  requireRole(
+    'author',
+    'office',
+    'editor',
+    'production',
+    'admin',
+    'journal_manager',
+    'copyeditor',
+  ),
   async (req: AuthedRequest, res) => {
     try {
       const role = req.user!.role
-      const where =
+      const staffJournalIds =
+        role === 'admin'
+          ? null
+          : await getUserJournalIds(req.user!.id, [
+              'journal_manager',
+              'editor',
+              'section_editor',
+              'copyeditor',
+              'production',
+            ])
+
+      let where: Prisma.ManuscriptWhereInput =
         role === 'author'
           ? { submittingAuthorId: req.user!.id }
-          : role === 'editor' || role === 'office'
-            ? {
-                OR: [
-                  {
-                    status: {
-                      in: [
-                        'submitted',
-                        'formatting_requested',
-                      ] as ManuscriptStatus[],
-                    },
-                  },
-                  { assignedEditorId: req.user!.id },
-                ],
-              }
-            : role === 'production'
+          : role === 'journal_manager' || isGlobalAdmin(role)
+            ? {} // all journal-scoped submissions (OJS JM / site admin queues)
+            : role === 'editor' || role === 'office'
               ? {
-                  status: {
-                    in: [
-                      'accepted',
-                      'in_production',
-                      'proof_sent',
-                      'ready_for_publication',
-                      'published',
-                    ] as ManuscriptStatus[],
-                  },
+                  OR: [
+                    {
+                      status: {
+                        in: [
+                          'submitted',
+                          'formatting_requested',
+                        ] as ManuscriptStatus[],
+                      },
+                    },
+                    { assignedEditorId: req.user!.id },
+                    { status: 'copyediting' },
+                  ],
                 }
-              : {}
+              : role === 'copyeditor'
+                ? { status: 'copyediting' }
+                : role === 'production'
+                  ? {
+                      status: {
+                        in: [
+                          'accepted',
+                          'copyediting',
+                          'in_production',
+                          'proof_sent',
+                          'ready_for_publication',
+                          'published',
+                        ] as ManuscriptStatus[],
+                      },
+                    }
+                  : {}
+
+      // Journal tenancy: when memberships exist, scope tightly.
+      // Empty membership keeps legacy global queues (demo / newly registered staff).
+      if (staffJournalIds && staffJournalIds.length > 0 && role !== 'author') {
+        where = {
+          AND: [where, { journalId: { in: staffJournalIds } }],
+        }
+      }
 
       const manuscripts = await prisma.manuscript.findMany({
         where,
@@ -144,9 +187,10 @@ router.get(
             reviewCount: item.reviews.length,
             openInviteCount,
             awaitingDecision:
-              item.status === 'under_review' &&
-              item.reviews.length > 0 &&
-              openInviteCount === 0,
+              (item.status === 'under_review' &&
+                item.reviews.length > 0 &&
+                openInviteCount === 0) ||
+              item.status === 'revision_submitted',
           }
         }),
       })
@@ -163,7 +207,7 @@ router.get(
 router.get(
   '/pipeline/production',
   requireAuth,
-  requireRole('production', 'admin'),
+  requireRole('production', 'admin', 'journal_manager', 'editor'),
   async (_req: AuthedRequest, res) => {
     try {
       const manuscripts = await prisma.manuscript.findMany({
@@ -171,6 +215,7 @@ router.get(
           status: {
             in: [
               'accepted',
+              'copyediting',
               'in_production',
               'proof_sent',
               'ready_for_publication',
@@ -251,7 +296,16 @@ router.get(
 router.get(
   '/:id',
   requireAuth,
-  requireRole('author', 'office', 'editor', 'production', 'admin', 'reviewer'),
+  requireRole(
+    'author',
+    'office',
+    'editor',
+    'production',
+    'admin',
+    'reviewer',
+    'journal_manager',
+    'copyeditor',
+  ),
   async (req: AuthedRequest, res) => {
     try {
       const key = String(req.params.id)
@@ -276,6 +330,12 @@ router.get(
             },
             orderBy: { submittedAt: 'desc' },
           },
+          editorRecommendations: {
+            include: {
+              editor: { select: { id: true, name: true, email: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+          },
         },
       })
 
@@ -293,15 +353,20 @@ router.get(
       }
 
       if (
-        (req.user!.role === 'editor' || req.user!.role === 'office') &&
-        manuscript.assignedEditorId !== req.user!.id &&
-        !['submitted', 'formatting_requested'].includes(manuscript.status)
+        req.user!.role === 'editor' ||
+        req.user!.role === 'office' ||
+        req.user!.role === 'journal_manager'
       ) {
-        res.status(403).json({
-          ok: false,
-          error: 'This manuscript is not available in your editorial queue.',
+        const allowed = await canManageEditorial(req.user!, manuscript, {
+          allowScreeningQueue: true,
         })
-        return
+        if (!allowed && req.user!.role !== 'journal_manager') {
+          res.status(403).json({
+            ok: false,
+            error: 'This manuscript is not available in your editorial queue.',
+          })
+          return
+        }
       }
 
       const isAuthor = req.user!.role === 'author'
@@ -322,6 +387,18 @@ router.get(
           : []
         : manuscript.reviews.map((item) => toClientReview(item))
 
+      const recommendationsPayload = isAuthor
+        ? []
+        : (manuscript.editorRecommendations ?? []).map((item) => ({
+            id: item.id,
+            recommendation: item.recommendation,
+            note: item.note,
+            round: item.round,
+            createdAt: item.createdAt.toISOString().slice(0, 10),
+            editorName: item.editor.name,
+            editorId: item.editor.id,
+          }))
+
       res.json({
         ok: true,
         manuscript: toClientManuscript(manuscript),
@@ -340,6 +417,7 @@ router.get(
               }),
             ),
         reviews: reviewsPayload,
+        editorRecommendations: recommendationsPayload,
       })
     } catch (error) {
       res.status(500).json({
@@ -353,7 +431,16 @@ router.get(
 router.get(
   '/:id/files/:fileId/download',
   requireAuth,
-  requireRole('author', 'office', 'editor', 'production', 'admin', 'reviewer'),
+  requireRole(
+    'author',
+    'office',
+    'editor',
+    'production',
+    'admin',
+    'reviewer',
+    'journal_manager',
+    'copyeditor',
+  ),
   async (req: AuthedRequest, res) => {
     try {
       const key = String(req.params.id)
@@ -377,16 +464,40 @@ router.get(
         res.status(403).json({ ok: false, error: 'You do not own this manuscript.' })
         return
       }
+
+      // Staff may download submission materials (OJS: editors see files at screening
+      // even before assignment). Authors/reviewers handled above/below.
       if (
-        req.user!.role === 'editor' &&
-        manuscript.assignedEditorId !== req.user!.id
+        req.user!.role === 'editor' ||
+        req.user!.role === 'office' ||
+        req.user!.role === 'journal_manager' ||
+        req.user!.role === 'copyeditor' ||
+        req.user!.role === 'production'
       ) {
-        res.status(403).json({
-          ok: false,
-          error: 'This manuscript is not assigned to you.',
+        const editorialOk = await canManageEditorial(req.user!, manuscript, {
+          allowScreeningQueue: true,
         })
-        return
+        const stageStaff =
+          (req.user!.role === 'production' &&
+            [
+              'accepted',
+              'copyediting',
+              'in_production',
+              'proof_sent',
+              'ready_for_publication',
+              'published',
+            ].includes(manuscript.status)) ||
+          (req.user!.role === 'copyeditor' &&
+            ['accepted', 'copyediting'].includes(manuscript.status))
+        if (!editorialOk && !stageStaff) {
+          res.status(403).json({
+            ok: false,
+            error: 'You do not have access to this manuscript’s files.',
+          })
+          return
+        }
       }
+
       if (req.user!.role === 'reviewer') {
         const invitation = await prisma.reviewInvitation.findFirst({
           where: {
@@ -475,6 +586,21 @@ router.post(
       const abstract = String(payload?.abstract ?? '').trim() || null
       const keywords = String(payload?.keywords ?? '').trim() || null
       const specialIssue = String(payload?.specialIssue ?? '').trim() || null
+      const sectionId = String(payload?.sectionId ?? '').trim() || null
+      const commentsForEditor =
+        String(payload?.coverLetter ?? payload?.commentsForEditor ?? '').trim() ||
+        null
+      const ethics =
+        payload?.ethics && typeof payload.ethics === 'object'
+          ? (payload.ethics as Record<string, unknown>)
+          : {}
+      const competingInterests =
+        String(ethics.conflictDetails ?? '').trim() || null
+      const fundingStatement =
+        String(ethics.fundingStatement ?? '').trim() || null
+      const dataAvailability =
+        String(ethics.dataAvailability ?? '').trim() || null
+      const ethicsNotes = String(ethics.ethicsDetails ?? '').trim() || null
       const authors = Array.isArray(payload?.authors)
         ? (payload.authors as AuthorInput[])
         : []
@@ -506,6 +632,27 @@ router.post(
         return
       }
 
+      if (sectionId) {
+        const section = await prisma.journalSection.findFirst({
+          where: { id: sectionId, journalId: journal.id, active: true },
+        })
+        if (!section) {
+          res.status(400).json({ ok: false, error: 'Invalid journal section.' })
+          return
+        }
+      } else if (status === 'submitted') {
+        const sectionCount = await prisma.journalSection.count({
+          where: { journalId: journal.id, active: true },
+        })
+        if (sectionCount > 0) {
+          res.status(400).json({
+            ok: false,
+            error: 'Please select a journal section before submitting.',
+          })
+          return
+        }
+      }
+
       const number = await nextManuscriptNumber(prisma)
       const authorsText =
         formatAuthorsText(authors) ||
@@ -526,14 +673,21 @@ router.post(
           specialIssue,
           status,
           authorsText,
+          commentsForEditor,
+          competingInterests,
+          fundingStatement,
+          dataAvailability,
+          ethicsNotes,
           submittedAt: status === 'submitted' ? new Date() : null,
           journalId: journal.id,
+          sectionId,
           submittingAuthorId: req.user!.id,
           authors: {
             create: authors.map((author, index) => ({
               name: String(author.name ?? '').trim() || 'Author',
               email: String(author.email ?? '').trim().toLowerCase(),
               affiliation: String(author.affiliation ?? '').trim() || null,
+              orcid: String((author as { orcid?: string }).orcid ?? '').trim() || null,
               isCorresponding: Boolean(author.corresponding),
               sortOrder: index,
             })),
@@ -618,12 +772,15 @@ router.post(
             })
           : manuscript
 
+      await ensureMembership(req.user!.id, journal.id, 'author')
+
       if (status === 'submitted') {
         notifySubmissionReceived({
           manuscriptId: withFiles.id,
           number: withFiles.number,
           title: withFiles.title,
           journalName: journal.name,
+          journalId: journal.id,
         })
       }
 
@@ -688,6 +845,7 @@ router.post(
         number: manuscript.number,
         title: manuscript.title,
         journalName: manuscript.journal?.name,
+        journalId: manuscript.journalId,
       })
 
       res.json({ ok: true, manuscript: toClientManuscript(manuscript) })
@@ -709,24 +867,11 @@ router.post(
     try {
       const key = String(req.params.id)
       const responseLetter = String(req.body?.responseLetter ?? '').trim()
-      const reinvitePreviousReviewers =
-        String(req.body?.reinvitePreviousReviewers ?? '') === 'true' ||
-        req.body?.reinvitePreviousReviewers === true
 
       const existing = await prisma.manuscript.findFirst({
         where: {
           OR: [{ number: key }, { id: key }],
           submittingAuthorId: req.user!.id,
-        },
-        include: {
-          invitations: {
-            include: {
-              review: { select: { id: true } },
-              reviewer: {
-                select: { id: true, name: true, email: true },
-              },
-            },
-          },
         },
       })
 
@@ -764,8 +909,11 @@ router.post(
       }
 
       const nextVersion = existing.version + 1
+      // Content revisions go to EIC first; formatting returns to screening.
       const nextStatus =
-        existing.status === 'formatting_requested' ? 'submitted' : 'under_review'
+        existing.status === 'formatting_requested'
+          ? 'submitted'
+          : 'revision_submitted'
 
       let savedPath: string | null = null
       let savedSize: number | null = null
@@ -782,95 +930,40 @@ router.post(
         savedName = saved.fileName
       }
 
-      const manuscript = await prisma.$transaction(async (tx) => {
-        const updated = await tx.manuscript.update({
-          where: { id: existing.id },
-          data: {
-            status: nextStatus,
-            version: nextVersion,
-            lastResponseLetter: responseLetter,
-            revisionDueAt: null,
-            files: {
-              create: {
-                kind:
-                  existing.status === 'formatting_requested'
-                    ? 'formatting_revision'
-                    : 'revision',
-                fileName: savedName,
-                storagePath: savedPath,
-                mimeType: uploaded?.mimetype || null,
-                sizeBytes: savedSize,
-              },
-            },
-            activities: {
-              create: {
-                actorId: req.user!.id,
-                label:
-                  existing.status === 'formatting_requested'
-                    ? 'Formatting revision submitted'
-                    : 'Revision submitted',
-                detail: `Version v${nextVersion} uploaded (${fileName}).`,
-              },
+      const manuscript = await prisma.manuscript.update({
+        where: { id: existing.id },
+        data: {
+          status: nextStatus,
+          version: nextVersion,
+          lastResponseLetter: responseLetter,
+          revisionDueAt: null,
+          files: {
+            create: {
+              kind:
+                existing.status === 'formatting_requested'
+                  ? 'formatting_revision'
+                  : 'revision',
+              fileName: savedName,
+              storagePath: savedPath,
+              mimeType: uploaded?.mimetype || null,
+              sizeBytes: savedSize,
             },
           },
-          include: manuscriptInclude,
-        })
-
-        if (
-          reinvitePreviousReviewers &&
-          existing.status === 'revision_requested'
-        ) {
-          const eligible = existing.invitations.filter(
-            (item) => item.status === 'accepted' || item.review,
-          )
-          const unique = new Map(
-            eligible.map((item) => [item.reviewerId, item] as const),
-          )
-          const maxRound = Math.max(
-            1,
-            ...existing.invitations.map((item) => item.round),
-            0,
-          )
-          const nextRound = Math.max(maxRound + 1, 2)
-          const deadline = new Date()
-          deadline.setDate(deadline.getDate() + 21)
-
-          for (const prior of unique.values()) {
-            const open = await tx.reviewInvitation.findFirst({
-              where: {
-                manuscriptId: existing.id,
-                reviewerId: prior.reviewerId,
-                status: { in: ['sent', 'accepted'] },
-                review: null,
-              },
-            })
-            if (open) continue
-
-            await tx.reviewInvitation.create({
-              data: {
-                manuscriptId: existing.id,
-                reviewerId: prior.reviewerId,
-                invitedById: existing.assignedEditorId,
-                deadline,
-                round: nextRound,
-                status: 'sent',
-              },
-            })
-          }
-
-          if (unique.size > 0) {
-            await tx.activityEvent.create({
-              data: {
-                manuscriptId: existing.id,
-                actorId: req.user!.id,
-                label: 'Reviewers re-invited',
-                detail: `${unique.size} previous reviewer(s) invited for round ${nextRound}.`,
-              },
-            })
-          }
-        }
-
-        return updated
+          activities: {
+            create: {
+              actorId: req.user!.id,
+              label:
+                existing.status === 'formatting_requested'
+                  ? 'Formatting revision submitted'
+                  : 'Revision submitted to Editor in Chief',
+              detail:
+                existing.status === 'formatting_requested'
+                  ? `Version v${nextVersion} uploaded (${fileName}).`
+                  : `Version v${nextVersion} uploaded (${fileName}). Awaiting EIC routing to an editor before the next review round.`,
+            },
+          },
+        },
+        include: manuscriptInclude,
       })
 
       notifyEditorRevisionSubmitted({
@@ -878,35 +971,10 @@ router.post(
         number: manuscript.number,
         title: manuscript.title,
         journalName: manuscript.journal?.name,
+        journalId: manuscript.journalId,
         kind:
           existing.status === 'formatting_requested' ? 'formatting' : 'content',
       })
-
-      if (
-        reinvitePreviousReviewers &&
-        existing.status === 'revision_requested'
-      ) {
-        const eligible = existing.invitations.filter(
-          (item) => item.status === 'accepted' || item.review,
-        )
-        const unique = new Map(
-          eligible.map((item) => [item.reviewerId, item] as const),
-        )
-        for (const prior of unique.values()) {
-          if (!prior.reviewer?.email) continue
-          notifyReviewerInvitation({
-            reviewerEmail: prior.reviewer.email,
-            reviewerName: prior.reviewer.name,
-            number: manuscript.number,
-            title: manuscript.title,
-            journalName: manuscript.journal?.name,
-            deadline: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000)
-              .toISOString()
-              .slice(0, 10),
-            round: manuscript.version,
-          })
-        }
-      }
 
       res.json({ ok: true, manuscript: toClientManuscript(manuscript) })
     } catch (error) {
@@ -921,13 +989,14 @@ router.post(
 router.post(
   '/:id/screening',
   requireAuth,
-  requireRole('editor', 'office'),
+  requireRole('editor', 'office', 'journal_manager', 'admin'),
   async (req: AuthedRequest, res) => {
     try {
       const key = String(req.params.id)
       const action = String(req.body?.action ?? '')
       const notes = String(req.body?.notes ?? '').trim()
       const rejectReason = String(req.body?.rejectReason ?? '').trim()
+      const editorIdRaw = String(req.body?.editorId ?? '').trim()
 
       const existing = await prisma.manuscript.findFirst({
         where: {
@@ -949,23 +1018,39 @@ router.post(
       }
 
       if (action === 'pass') {
+        const targetEditorId = editorIdRaw || req.user!.id
+        const editor = await prisma.user.findFirst({
+          where: {
+            id: targetEditorId,
+            role: { in: ['editor', 'journal_manager', 'office', 'admin'] },
+          },
+        })
+        if (!editor) {
+          res.status(400).json({ ok: false, error: 'Selected editor not found.' })
+          return
+        }
+        const assignedEditorId = editor.id
+        const assignedName = editor.name
+
         const manuscript = await prisma.manuscript.update({
           where: { id: existing.id },
           data: {
             status: 'under_review',
-            assignedEditorId: req.user!.id,
+            assignedEditorId,
             officeNotes: notes || existing.officeNotes,
             activities: {
               create: {
                 actorId: req.user!.id,
                 label: 'Passed screening',
-                detail:
-                  'Initial screening passed. Ready to invite reviewers.',
+                detail: `Assigned to ${assignedName}. Ready to invite reviewers.`,
               },
             },
           },
           include: manuscriptInclude,
         })
+
+        await ensureOpenReviewRound(manuscript.id, 1)
+        await ensureMembership(assignedEditorId, manuscript.journalId, 'editor')
 
         notifyUnderReview({
           manuscriptId: manuscript.id,
@@ -1067,9 +1152,226 @@ router.post(
 )
 
 router.post(
+  '/:id/assign-editor',
+  requireAuth,
+  requireRole('editor', 'office', 'journal_manager', 'admin'),
+  async (req: AuthedRequest, res) => {
+    try {
+      const key = String(req.params.id)
+      const editorId = String(req.body?.editorId ?? '').trim()
+      if (!editorId) {
+        res.status(400).json({ ok: false, error: 'editorId is required.' })
+        return
+      }
+
+      const existing = await prisma.manuscript.findFirst({
+        where: { OR: [{ number: key }, { id: key }] },
+      })
+      if (!existing) {
+        res.status(404).json({ ok: false, error: 'Manuscript not found.' })
+        return
+      }
+
+      const allowed = await canManageEditorial(req.user!, existing, {
+        allowScreeningQueue: true,
+      })
+      if (!allowed) {
+        res.status(403).json({ ok: false, error: 'Not allowed to assign editor.' })
+        return
+      }
+
+      const editor = await prisma.user.findFirst({
+        where: {
+          id: editorId,
+          role: { in: ['editor', 'journal_manager', 'office', 'admin'] },
+        },
+      })
+      if (!editor) {
+        res.status(400).json({ ok: false, error: 'Editor not found.' })
+        return
+      }
+
+      const manuscript = await prisma.manuscript.update({
+        where: { id: existing.id },
+        data: {
+          assignedEditorId: editor.id,
+          activities: {
+            create: {
+              actorId: req.user!.id,
+              label: 'Editor assigned',
+              detail: `${editor.name} assigned as editor.`,
+            },
+          },
+        },
+        include: manuscriptInclude,
+      })
+
+      await ensureMembership(editor.id, manuscript.journalId, 'editor')
+      res.json({ ok: true, manuscript: toClientManuscript(manuscript) })
+    } catch (error) {
+      res.status(500).json({
+        ok: false,
+        error: error instanceof Error ? error.message : 'Failed to assign editor',
+      })
+    }
+  },
+)
+
+router.post(
+  '/:id/files',
+  requireAuth,
+  requireRole('editor', 'office', 'journal_manager', 'admin', 'production', 'copyeditor'),
+  async (req: AuthedRequest, res) => {
+    try {
+      const key = String(req.params.id)
+      const kind = String(req.body?.kind ?? 'other').trim() || 'other'
+      const fileName = String(req.body?.fileName ?? '').trim()
+      const visibility = String(req.body?.visibility ?? 'staff').trim() || 'staff'
+      const reviewRoundId = String(req.body?.reviewRoundId ?? '').trim() || null
+
+      if (!fileName) {
+        res.status(400).json({ ok: false, error: 'fileName is required.' })
+        return
+      }
+      if (!['author', 'staff', 'review'].includes(visibility)) {
+        res.status(400).json({
+          ok: false,
+          error: 'visibility must be author, staff, or review.',
+        })
+        return
+      }
+
+      const existing = await prisma.manuscript.findFirst({
+        where: { OR: [{ number: key }, { id: key }] },
+      })
+      if (!existing) {
+        res.status(404).json({ ok: false, error: 'Manuscript not found.' })
+        return
+      }
+
+      const allowed = await canManageEditorial(req.user!, existing, {
+        allowScreeningQueue: true,
+      })
+      if (
+        !allowed &&
+        req.user!.role !== 'production' &&
+        req.user!.role !== 'copyeditor'
+      ) {
+        res.status(403).json({ ok: false, error: 'Not allowed to add files.' })
+        return
+      }
+
+      const file = await prisma.manuscriptFile.create({
+        data: {
+          manuscriptId: existing.id,
+          kind,
+          fileName,
+          visibility,
+          reviewRoundId,
+        },
+      })
+
+      await prisma.activityEvent.create({
+        data: {
+          manuscriptId: existing.id,
+          actorId: req.user!.id,
+          label: 'File added',
+          detail: `${fileName} (${kind}, ${visibility})`,
+        },
+      })
+
+      res.status(201).json({
+        ok: true,
+        file: {
+          id: file.id,
+          kind: file.kind,
+          fileName: file.fileName,
+          visibility: file.visibility,
+          sizeBytes: file.sizeBytes,
+        },
+      })
+    } catch (error) {
+      res.status(500).json({
+        ok: false,
+        error: error instanceof Error ? error.message : 'Failed to add file',
+      })
+    }
+  },
+)
+
+router.patch(
+  '/:id/files/:fileId',
+  requireAuth,
+  requireRole('editor', 'office', 'journal_manager', 'admin'),
+  async (req: AuthedRequest, res) => {
+    try {
+      const key = String(req.params.id)
+      const fileId = String(req.params.fileId)
+      const visibility = String(req.body?.visibility ?? '').trim()
+      if (!['author', 'staff', 'review'].includes(visibility)) {
+        res.status(400).json({
+          ok: false,
+          error: 'visibility must be author, staff, or review.',
+        })
+        return
+      }
+
+      const existing = await prisma.manuscript.findFirst({
+        where: { OR: [{ number: key }, { id: key }] },
+      })
+      if (!existing) {
+        res.status(404).json({ ok: false, error: 'Manuscript not found.' })
+        return
+      }
+      const allowed = await canManageEditorial(req.user!, existing)
+      if (!allowed) {
+        res.status(403).json({ ok: false, error: 'Not allowed.' })
+        return
+      }
+
+      const existingFile = await prisma.manuscriptFile.findFirst({
+        where: { id: fileId, manuscriptId: existing.id },
+      })
+      if (!existingFile) {
+        res.status(404).json({ ok: false, error: 'File not found.' })
+        return
+      }
+      const file = await prisma.manuscriptFile.update({
+        where: { id: existingFile.id },
+        data: { visibility },
+      })
+
+      await prisma.activityEvent.create({
+        data: {
+          manuscriptId: existing.id,
+          actorId: req.user!.id,
+          label: 'File visibility updated',
+          detail: `${file.fileName} → ${visibility}`,
+        },
+      })
+
+      res.json({
+        ok: true,
+        file: {
+          id: file.id,
+          kind: file.kind,
+          fileName: file.fileName,
+          visibility: file.visibility,
+        },
+      })
+    } catch (error) {
+      res.status(500).json({
+        ok: false,
+        error: error instanceof Error ? error.message : 'Failed to update file',
+      })
+    }
+  },
+)
+
+router.post(
   '/:id/invitations',
   requireAuth,
-  requireRole('editor', 'office'),
+  requireRole('editor', 'office', 'journal_manager', 'admin'),
   async (req: AuthedRequest, res) => {
     try {
       const key = String(req.params.id)
@@ -1079,7 +1381,6 @@ router.post(
       const manuscript = await prisma.manuscript.findFirst({
         where: {
           OR: [{ number: key }, { id: key }],
-          assignedEditorId: req.user!.id,
         },
       })
 
@@ -1087,6 +1388,16 @@ router.post(
         res.status(404).json({ ok: false, error: 'Manuscript not found.' })
         return
       }
+
+      const allowed = await canManageEditorial(req.user!, manuscript)
+      if (!allowed) {
+        res.status(403).json({
+          ok: false,
+          error: 'Only the assigned editor or journal manager can invite reviewers.',
+        })
+        return
+      }
+
       if (manuscript.status !== 'under_review') {
         res.status(400).json({
           ok: false,
@@ -1103,11 +1414,44 @@ router.post(
         return
       }
 
+      // Conflict: reviewer cannot be co-author or assigned editor
+      if (manuscript.assignedEditorId === reviewer.id) {
+        res.status(400).json({
+          ok: false,
+          error: 'Assigned editor cannot review this manuscript.',
+        })
+        return
+      }
+      if (manuscript.submittingAuthorId === reviewer.id) {
+        res.status(400).json({
+          ok: false,
+          error: 'Submitting author cannot review their own manuscript.',
+        })
+        return
+      }
+      const coAuthor = await prisma.manuscriptAuthor.findFirst({
+        where: {
+          manuscriptId: manuscript.id,
+          OR: [{ userId: reviewer.id }, { email: reviewer.email }],
+        },
+      })
+      if (coAuthor) {
+        res.status(400).json({
+          ok: false,
+          error: 'Co-authors cannot be invited as reviewers.',
+        })
+        return
+      }
+
+      // Only block if this reviewer still has an unfinished invite (sent/accepted
+      // with no report). Completed round-1 reviews must not block re-invite in
+      // later rounds after EIC routes a revision.
       const existingOpen = await prisma.reviewInvitation.findFirst({
         where: {
           manuscriptId: manuscript.id,
           reviewerId: reviewer.id,
           status: { in: ['sent', 'accepted'] },
+          review: null,
         },
       })
       if (existingOpen) {
@@ -1122,13 +1466,19 @@ router.post(
       const deadline = new Date()
       deadline.setDate(deadline.getDate() + days)
 
+      const reviewRound = await ensureOpenReviewRound(
+        manuscript.id,
+        manuscript.version,
+      )
+
       const invitation = await prisma.reviewInvitation.create({
         data: {
           manuscriptId: manuscript.id,
           reviewerId: reviewer.id,
           invitedById: req.user!.id,
           deadline,
-          round: manuscript.version,
+          round: reviewRound.roundNumber,
+          reviewRoundId: reviewRound.id,
           status: 'sent',
         },
         include: {
@@ -1176,10 +1526,238 @@ router.post(
   },
 )
 
+/** Handling editor proposes a recommendation to EIC (does not notify author). */
+router.post(
+  '/:id/editor-recommendation',
+  requireAuth,
+  requireRole('editor', 'office', 'journal_manager', 'admin'),
+  async (req: AuthedRequest, res) => {
+    try {
+      const key = String(req.params.id)
+      const recommendation = String(req.body?.recommendation ?? '')
+      const note = String(req.body?.note ?? '').trim()
+
+      const allowed = [
+        'accept',
+        'minor_revision',
+        'major_revision',
+        'reject',
+      ] as const
+      if (!allowed.includes(recommendation as (typeof allowed)[number])) {
+        res.status(400).json({ ok: false, error: 'Invalid recommendation.' })
+        return
+      }
+      if (!note) {
+        res.status(400).json({
+          ok: false,
+          error: 'Add a note explaining your recommendation for the Editor in Chief.',
+        })
+        return
+      }
+
+      const existing = await prisma.manuscript.findFirst({
+        where: { OR: [{ number: key }, { id: key }] },
+      })
+      if (!existing) {
+        res.status(404).json({ ok: false, error: 'Manuscript not found.' })
+        return
+      }
+
+      const allowedEd = await canManageEditorial(req.user!, existing)
+      if (!allowedEd) {
+        res.status(403).json({
+          ok: false,
+          error: 'Only the handling editor can propose a recommendation.',
+        })
+        return
+      }
+      if (existing.status !== 'under_review') {
+        res.status(400).json({
+          ok: false,
+          error: 'Recommendations are only available while under review.',
+        })
+        return
+      }
+
+      const reviewCount = await prisma.reviewReport.count({
+        where: { manuscriptId: existing.id },
+      })
+      if (reviewCount < 1) {
+        res.status(400).json({
+          ok: false,
+          error: 'Wait for at least one reviewer report before recommending.',
+        })
+        return
+      }
+
+      const openRound = await prisma.reviewRound.findFirst({
+        where: { manuscriptId: existing.id, status: 'open' },
+        orderBy: { roundNumber: 'desc' },
+      })
+
+      const created = await prisma.editorRecommendation.create({
+        data: {
+          manuscriptId: existing.id,
+          editorId: req.user!.id,
+          recommendation: recommendation as (typeof allowed)[number],
+          note,
+          round: openRound?.roundNumber ?? existing.version,
+          reviewRoundId: openRound?.id,
+        },
+        include: {
+          editor: { select: { id: true, name: true, email: true } },
+        },
+      })
+
+      await prisma.activityEvent.create({
+        data: {
+          manuscriptId: existing.id,
+          actorId: req.user!.id,
+          label: 'Editor recommendation for EIC',
+          detail: `${created.editor.name} recommends ${recommendation.replace('_', ' ')}. Pending Editor in Chief final decision.`,
+        },
+      })
+
+      notifyEicEditorRecommendation({
+        manuscriptId: existing.id,
+        number: existing.number,
+        title: existing.title,
+        journalId: existing.journalId,
+        editorName: created.editor.name,
+        recommendation,
+        note,
+      })
+
+      res.status(201).json({
+        ok: true,
+        recommendation: {
+          id: created.id,
+          recommendation: created.recommendation,
+          note: created.note,
+          round: created.round,
+          createdAt: created.createdAt.toISOString().slice(0, 10),
+          editorName: created.editor.name,
+          editorId: created.editor.id,
+        },
+      })
+    } catch (error) {
+      res.status(500).json({
+        ok: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to save editor recommendation',
+      })
+    }
+  },
+)
+
+/** EIC routes an author revision to a handling editor and opens the next review round. */
+router.post(
+  '/:id/route-revision',
+  requireAuth,
+  requireRole('admin', 'journal_manager'),
+  async (req: AuthedRequest, res) => {
+    try {
+      const key = String(req.params.id)
+      const editorIdRaw = String(req.body?.editorId ?? '').trim()
+
+      const existing = await prisma.manuscript.findFirst({
+        where: { OR: [{ number: key }, { id: key }] },
+      })
+      if (!existing) {
+        res.status(404).json({ ok: false, error: 'Manuscript not found.' })
+        return
+      }
+      if (existing.status !== 'revision_submitted') {
+        res.status(400).json({
+          ok: false,
+          error: 'Only revisions awaiting EIC routing can be assigned here.',
+        })
+        return
+      }
+
+      const targetEditorId = editorIdRaw || existing.assignedEditorId || req.user!.id
+      const editor = await prisma.user.findFirst({
+        where: {
+          id: targetEditorId,
+          role: { in: ['editor', 'journal_manager', 'office', 'admin'] },
+        },
+      })
+      if (!editor) {
+        res.status(400).json({ ok: false, error: 'Selected editor not found.' })
+        return
+      }
+
+      const nextRoundNumber =
+        (await prisma.reviewRound.count({
+          where: { manuscriptId: existing.id },
+        })) + 1
+
+      const manuscript = await prisma.$transaction(async (tx) => {
+        await tx.reviewRound.updateMany({
+          where: { manuscriptId: existing.id, status: 'open' },
+          data: {
+            status: 'closed',
+            closedAt: new Date(),
+            closedById: req.user!.id,
+          },
+        })
+
+        await tx.reviewRound.create({
+          data: {
+            manuscriptId: existing.id,
+            roundNumber: nextRoundNumber,
+            status: 'open',
+            notes: `Opened by Editor in Chief after author revision v${existing.version}.`,
+          },
+        })
+
+        return tx.manuscript.update({
+          where: { id: existing.id },
+          data: {
+            status: 'under_review',
+            assignedEditorId: editor.id,
+            activities: {
+              create: {
+                actorId: req.user!.id,
+                label: 'Revision routed to editor',
+                detail: `Assigned to ${editor.name} for review round ${nextRoundNumber}. Editor may invite previous or new reviewers.`,
+              },
+            },
+          },
+          include: manuscriptInclude,
+        })
+      })
+
+      await ensureMembership(editor.id, manuscript.journalId, 'editor')
+
+      notifyEditorRevisionRouted({
+        manuscriptId: manuscript.id,
+        number: manuscript.number,
+        title: manuscript.title,
+        journalName: manuscript.journal?.name,
+        editorEmail: editor.email,
+        editorName: editor.name,
+        roundNumber: nextRoundNumber,
+      })
+
+      res.json({ ok: true, manuscript: toClientManuscript(manuscript) })
+    } catch (error) {
+      res.status(500).json({
+        ok: false,
+        error:
+          error instanceof Error ? error.message : 'Failed to route revision',
+      })
+    }
+  },
+)
+
+/** Final decision to the author — Editor in Chief only. */
 router.post(
   '/:id/decision',
   requireAuth,
-  requireRole('editor', 'office'),
+  requireRole('admin', 'journal_manager'),
   async (req: AuthedRequest, res) => {
     try {
       const key = String(req.params.id)
@@ -1205,11 +1783,18 @@ router.post(
       const existing = await prisma.manuscript.findFirst({
         where: {
           OR: [{ number: key }, { id: key }],
-          assignedEditorId: req.user!.id,
         },
       })
       if (!existing) {
         res.status(404).json({ ok: false, error: 'Manuscript not found.' })
+        return
+      }
+
+      if (req.user!.role !== 'admin' && req.user!.role !== 'journal_manager') {
+        res.status(403).json({
+          ok: false,
+          error: 'Only the Editor in Chief can send the final decision to the author.',
+        })
         return
       }
       if (!['under_review', 'revision_requested'].includes(existing.status)) {
@@ -1252,7 +1837,8 @@ router.post(
 
       let nextStatus: ManuscriptStatus = 'under_review'
       let revisionDueAt: Date | null = null
-      if (decision === 'accept') nextStatus = 'accepted'
+      // OJS: Accept enters Copyediting (not production queue alone)
+      if (decision === 'accept') nextStatus = 'copyediting'
       else if (decision === 'reject') nextStatus = 'rejected'
       else {
         nextStatus = 'revision_requested'
@@ -1260,6 +1846,11 @@ router.post(
         revisionDueAt = new Date()
         revisionDueAt.setDate(revisionDueAt.getDate() + days)
       }
+
+      const openRound = await prisma.reviewRound.findFirst({
+        where: { manuscriptId: existing.id, status: 'open' },
+        orderBy: { roundNumber: 'desc' },
+      })
 
       const manuscript = await prisma.$transaction(async (tx) => {
         await tx.editorialDecision.create({
@@ -1269,8 +1860,20 @@ router.post(
             decision: decision as (typeof allowed)[number],
             letter,
             round: existing.version,
+            reviewRoundId: openRound?.id,
           },
         })
+
+        if (openRound && (decision === 'accept' || decision === 'reject')) {
+          await tx.reviewRound.update({
+            where: { id: openRound.id },
+            data: {
+              status: 'closed',
+              closedAt: new Date(),
+              closedById: req.user!.id,
+            },
+          })
+        }
 
         return tx.manuscript.update({
           where: { id: existing.id },
@@ -1283,8 +1886,11 @@ router.post(
             activities: {
               create: {
                 actorId: req.user!.id,
-                label: 'Editorial decision recorded',
-                detail: `${decision.replace('_', ' ')} — ${letter.slice(0, 120)}`,
+                label: 'Editor in Chief decision',
+                detail:
+                  decision === 'accept'
+                    ? `accept — moved to copyediting. ${letter.slice(0, 100)}`
+                    : `${decision.replace('_', ' ')} — ${letter.slice(0, 120)}`,
               },
             },
           },
@@ -1327,7 +1933,7 @@ async function findManuscriptByKey(key: string) {
 router.post(
   '/:id/production/start',
   requireAuth,
-  requireRole('production', 'admin'),
+  requireRole('production', 'admin', 'journal_manager', 'editor'),
   async (req: AuthedRequest, res) => {
     try {
       const key = String(req.params.id)
@@ -1337,12 +1943,30 @@ router.post(
         res.status(404).json({ ok: false, error: 'Manuscript not found.' })
         return
       }
-      if (existing.status !== 'accepted') {
+      if (!['accepted', 'copyediting'].includes(existing.status)) {
         res.status(400).json({
           ok: false,
-          error: 'Only accepted manuscripts can enter production.',
+          error: 'Manuscript must complete (or skip via accept legacy) copyediting before production.',
         })
         return
+      }
+
+      if (existing.status === 'copyediting') {
+        const approved = await prisma.copyeditAssignment.findFirst({
+          where: { manuscriptId: existing.id, status: 'approved' },
+        })
+        // Allow production if no copyeditor was assigned yet (manager skip)
+        // or if an approved assignment exists
+        const anyAssignment = await prisma.copyeditAssignment.count({
+          where: { manuscriptId: existing.id },
+        })
+        if (anyAssignment > 0 && !approved) {
+          res.status(400).json({
+            ok: false,
+            error: 'Approve copyediting before starting production.',
+          })
+          return
+        }
       }
 
       const manuscript = await prisma.manuscript.update({
@@ -1361,6 +1985,14 @@ router.post(
         include: manuscriptInclude,
       })
 
+      notifyProductionHandoff({
+        manuscriptId: manuscript.id,
+        number: manuscript.number,
+        title: manuscript.title,
+        journalName: manuscript.journal?.name,
+        journalId: manuscript.journalId,
+      })
+
       res.json({ ok: true, manuscript: toClientManuscript(manuscript) })
     } catch (error) {
       res.status(500).json({
@@ -1374,7 +2006,7 @@ router.post(
 router.post(
   '/:id/production/proof',
   requireAuth,
-  requireRole('production', 'admin'),
+  requireRole('production', 'admin', 'journal_manager', 'editor'),
   proofUpload.single('file'),
   async (req: AuthedRequest, res) => {
     try {
@@ -1647,7 +2279,7 @@ router.post(
 router.post(
   '/:id/production/publish',
   requireAuth,
-  requireRole('production', 'admin'),
+  requireRole('production', 'admin', 'journal_manager', 'editor'),
   async (req: AuthedRequest, res) => {
     try {
       const key = String(req.params.id)
@@ -1713,7 +2345,7 @@ router.post(
 router.post(
   '/:id/production/portal-sync',
   requireAuth,
-  requireRole('production', 'admin'),
+  requireRole('production', 'admin', 'journal_manager', 'editor'),
   async (req: AuthedRequest, res) => {
     try {
       const key = String(req.params.id)

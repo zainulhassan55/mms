@@ -8,6 +8,10 @@ import authRoutes from './routes/auth.js'
 import invitationRoutes from './routes/invitations.js'
 import manuscriptRoutes from './routes/manuscripts.js'
 import adminRoutes from './routes/admin.js'
+import journalRoutes from './routes/journals.js'
+import issueRoutes from './routes/issues.js'
+import publicRoutes from './routes/public.js'
+import workflowRoutes from './routes/workflow.js'
 
 const app = express()
 const port = Number(process.env.PORT) || 4000
@@ -39,29 +43,19 @@ app.use('/api/auth', authRoutes)
 app.use('/api/manuscripts', manuscriptRoutes)
 app.use('/api/invitations', invitationRoutes)
 app.use('/api/admin', adminRoutes)
-
-app.get('/api/journals', async (_req, res) => {
-  try {
-    const journals = await prisma.journal.findMany({
-      orderBy: { name: 'asc' },
-    })
-    res.json({ ok: true, journals })
-  } catch (error) {
-    res.status(500).json({
-      ok: false,
-      error: error instanceof Error ? error.message : 'Failed to load journals',
-    })
-  }
-})
+app.use('/api/journals', journalRoutes)
+app.use('/api/issues', issueRoutes)
+app.use('/api/public', publicRoutes)
+app.use('/api/workflow', workflowRoutes)
 
 app.get(
   '/api/editors',
   requireAuth,
-  requireRole('office', 'admin', 'editor'),
+  requireRole('office', 'admin', 'editor', 'journal_manager'),
   async (_req: AuthedRequest, res) => {
     try {
       const editors = await prisma.user.findMany({
-        where: { role: 'editor' },
+        where: { role: { in: ['editor', 'journal_manager'] } },
         select: {
           id: true,
           name: true,
@@ -82,7 +76,7 @@ app.get(
 app.get(
   '/api/reviewers',
   requireAuth,
-  requireRole('editor', 'admin', 'office'),
+  requireRole('editor', 'admin', 'office', 'journal_manager'),
   async (_req: AuthedRequest, res) => {
     try {
       const reviewers = await prisma.user.findMany({
@@ -109,7 +103,7 @@ app.get(
 app.get(
   '/api/users',
   requireAuth,
-  requireRole('admin', 'office'),
+  requireRole('admin', 'office', 'journal_manager', 'editor', 'production'),
   async (_req: AuthedRequest, res) => {
     try {
       const users = await prisma.user.findMany({

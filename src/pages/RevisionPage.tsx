@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { StatusBadge } from '../components/StatusBadge'
 import { ReviewReports } from '../components/ReviewReports'
 import { DetailHeader } from '../components/ui'
+import { useToast } from '../components/ToastProvider'
 import {
   recommendationLabels,
   statusLabels,
@@ -18,6 +19,7 @@ import {
 export function RevisionPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const toast = useToast()
 
   const [manuscript, setManuscript] = useState<ApiManuscript | null>(null)
   const [reviews, setReviews] = useState<ApiReview[]>([])
@@ -27,8 +29,6 @@ export function RevisionPage() {
 
   const [responseLetter, setResponseLetter] = useState('')
   const [file, setFile] = useState<File | null>(null)
-  const [reinvite, setReinvite] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -44,10 +44,11 @@ export function RevisionPage() {
         }
       } catch (err) {
         if (!cancelled) {
+          const message =
+            err instanceof Error ? err.message : 'Manuscript not found.'
           setManuscript(null)
-          setLoadError(
-            err instanceof Error ? err.message : 'Manuscript not found.',
-          )
+          setLoadError(message)
+          toast.error(message)
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -57,7 +58,7 @@ export function RevisionPage() {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, toast])
 
   if (loading) {
     return (
@@ -108,26 +109,24 @@ export function RevisionPage() {
     event.preventDefault()
     if (!id || !manuscript) return
     if (!file) {
-      setError('Please upload a revised manuscript file.')
+      toast.error('Please upload a revised manuscript file.')
       return
     }
     if (!responseLetter.trim()) {
-      setError('Please include a response letter.')
+      toast.error('Please include a response letter.')
       return
     }
 
     setPending(true)
-    setError(null)
     try {
       await submitRevision(id, {
         responseLetter: responseLetter.trim(),
         file,
-        reinvitePreviousReviewers:
-          manuscript.status === 'revision_requested' ? reinvite : false,
       })
+      toast.success('Revision submitted.')
       navigate(`/author/submissions/${id}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not submit revision.')
+      toast.error(err instanceof Error ? err.message : 'Could not submit revision.')
     } finally {
       setPending(false)
     }
@@ -187,10 +186,7 @@ export function RevisionPage() {
             id="response"
             rows={7}
             value={responseLetter}
-            onChange={(e) => {
-              setResponseLetter(e.target.value)
-              setError(null)
-            }}
+            onChange={(e) => setResponseLetter(e.target.value)}
             placeholder="Describe changes point-by-point…"
             className="resize-y"
             required
@@ -217,7 +213,6 @@ export function RevisionPage() {
                 const next = e.target.files?.[0]
                 if (!next) return
                 setFile(next)
-                setError(null)
                 e.target.value = ''
               }}
             />
@@ -225,23 +220,9 @@ export function RevisionPage() {
         </div>
 
         {manuscript.status === 'revision_requested' ? (
-          <label className="flex items-start gap-3 text-sm text-ink-700">
-            <input
-              type="checkbox"
-              checked={reinvite}
-              onChange={(e) => setReinvite(e.target.checked)}
-              className="mt-0.5 accent-[var(--color-signal-600)]"
-            />
-            <span>
-              Ask previous reviewers to re-review this revision (Round 2
-              invitations).
-            </span>
-          </label>
-        ) : null}
-
-        {error ? (
-          <p className="rounded-md bg-rose-50 px-3 py-2 text-sm font-medium text-rose-600">
-            {error}
+          <p className="rounded-[var(--radius-md)] bg-paper-soft px-3.5 py-3 text-sm text-ink-600">
+            After you submit, the revision goes to the <strong>Editor in Chief</strong> first.
+            They will route it to an editor, who invites reviewers for the next round.
           </p>
         ) : null}
 

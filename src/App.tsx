@@ -3,6 +3,7 @@ import { AuthProvider } from './auth/AuthContext'
 import { GuestRoute, ProtectedRoute } from './auth/RouteGuards'
 import { RoleRoute } from './auth/RoleRoute'
 import { AppShell } from './components/AppShell'
+import { ToastProvider } from './components/ToastProvider'
 import { AdminAnalyticsPage } from './pages/admin/AdminAnalyticsPage'
 import { AdminJournalsPage } from './pages/admin/AdminJournalsPage'
 import { PortalSyncPage } from './pages/admin/PortalSyncPage'
@@ -28,6 +29,14 @@ import { RoleHomeRedirect } from './pages/RoleHomeRedirect'
 import { SettingsPage } from './pages/SettingsPage'
 import { NewSubmissionPage } from './pages/submission/NewSubmissionPage'
 import { SubmissionDetailPage } from './pages/SubmissionDetailPage'
+import { JournalManagerPage } from './pages/manager/JournalManagerPage'
+import { CopyeditQueuePage } from './pages/copyedit/CopyeditQueuePage'
+import { AdminUsersPage } from './pages/admin/AdminUsersPage'
+import { PublicHomePage } from './pages/public/PublicHomePage'
+import {
+  PublicArticlePage,
+  PublicJournalPage,
+} from './pages/public/PublicJournalPage'
 
 function OfficeManuscriptRedirect() {
   const { id } = useParams()
@@ -37,9 +46,10 @@ function OfficeManuscriptRedirect() {
 export default function App() {
   return (
     <AuthProvider>
+      <ToastProvider>
       <BrowserRouter basename="/mms">
         <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/" element={<PublicHomePage />} />
             <Route
               path="/login"
               element={
@@ -64,6 +74,9 @@ export default function App() {
                 </GuestRoute>
               }
             />
+
+            <Route path="/j/:code" element={<PublicJournalPage />} />
+            <Route path="/j/:code/article/:number" element={<PublicArticlePage />} />
 
             <Route element={<ProtectedRoute />}>
               <Route element={<AppShell />}>
@@ -90,7 +103,13 @@ export default function App() {
                   />
                 </Route>
 
-                <Route element={<RoleRoute allow={['editor', 'office']} />}>
+                <Route
+                  element={
+                    <RoleRoute
+                      allow={['editor', 'office', 'journal_manager', 'admin']}
+                    />
+                  }
+                >
                   <Route path="/editor/queue" element={<EditorQueuePage />} />
                   <Route
                     path="/editor/manuscript/:id"
@@ -106,7 +125,36 @@ export default function App() {
                   />
                 </Route>
 
-                <Route element={<RoleRoute allow={['production', 'admin']} />}>
+                <Route
+                  element={
+                    <RoleRoute allow={['journal_manager', 'admin', 'editor']} />
+                  }
+                >
+                  <Route path="/manager/journals" element={<JournalManagerPage />} />
+                </Route>
+
+                <Route
+                  element={
+                    <RoleRoute
+                      allow={['copyeditor', 'editor', 'journal_manager', 'admin']}
+                    />
+                  }
+                >
+                  <Route path="/copyedit/queue" element={<CopyeditQueuePage />} />
+                </Route>
+
+                <Route
+                  element={
+                    <RoleRoute
+                      allow={[
+                        'production',
+                        'editor',
+                        'admin',
+                        'journal_manager',
+                      ]}
+                    />
+                  }
+                >
                   <Route path="/production/queue" element={<ProductionQueuePage />} />
                   <Route
                     path="/production/manuscript/:id"
@@ -115,9 +163,10 @@ export default function App() {
                 </Route>
 
                 <Route element={<RoleRoute allow={['admin']} />}>
+                  <Route path="/admin/journals" element={<AdminJournalsPage />} />
+                  <Route path="/admin/users" element={<AdminUsersPage />} />
                   <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
                   <Route path="/admin/portal-sync" element={<PortalSyncPage />} />
-                  <Route path="/admin/journals" element={<AdminJournalsPage />} />
                 </Route>
 
                 <Route element={<RoleRoute allow={['reviewer']} />}>
@@ -139,9 +188,10 @@ export default function App() {
               </Route>
             </Route>
 
-            <Route path="*" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   )
 }
