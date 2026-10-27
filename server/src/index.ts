@@ -1,6 +1,8 @@
 import 'dotenv/config'
 import cors from 'cors'
 import express from 'express'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { prisma } from './db.js'
 import { requireAuth, type AuthedRequest } from './auth/middleware.js'
 import { requireRole } from './auth/requireRole.js'
@@ -47,6 +49,30 @@ app.use('/api/journals', journalRoutes)
 app.use('/api/issues', issueRoutes)
 app.use('/api/public', publicRoutes)
 app.use('/api/workflow', workflowRoutes)
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const frontendDist = path.resolve(__dirname, '../../dist')
+const frontendBase = (process.env.FRONTEND_BASE || '/mms').replace(/\/$/, '') || '/mms'
+
+app.use(
+  frontendBase,
+  express.static(frontendDist, {
+    index: false,
+    fallthrough: true,
+  }),
+)
+
+// SPA fallback for React Router under /mms (avoid Express 5 /* path bugs)
+app.use(frontendBase, (req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    next()
+    return
+  }
+  res.sendFile(path.join(frontendDist, 'index.html'), (err) => {
+    if (err) next()
+  })
+})
 
 app.get(
   '/api/editors',

@@ -1,7 +1,12 @@
 const TOKEN_KEY = 'mms.token'
 
 export function getApiBase() {
-  return import.meta.env.VITE_API_URL ?? 'http://localhost:4000'
+  const configured = import.meta.env.VITE_API_URL
+  if (typeof configured === 'string' && configured.length > 0) {
+    return configured.replace(/\/$/, '')
+  }
+  // Local Vite → API on :4000. Production (same Hostinger host) → relative /api.
+  return import.meta.env.DEV ? 'http://localhost:4000' : ''
 }
 
 export function getToken() {

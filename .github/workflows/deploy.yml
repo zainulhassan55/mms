@@ -1,29 +1,18 @@
-name: Deploy React App to GitHub Pages
+name: Deploy MMS to Hostinger VPS
 
 on:
   push:
     branches:
       - main
-
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
 concurrency:
-  group: "pages"
+  group: deploy-hostinger
   cancel-in-progress: true
 
 jobs:
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -34,20 +23,51 @@ jobs:
           node-version: lts/*
           cache: npm
 
-      - name: Install dependencies
+      - name: Install frontend deps
         run: npm ci
 
-      - name: Build React app
+      - name: Build frontend
+        run: npm run build
+        env:
+          # Same-origin API on the VPS (empty = relative /api)
+          VITE_API_URL: ""
+
+      - name: Install backend deps
+        working-directory: server
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: server
+        run: npx prisma generate
+
+      - name: Build backend
+        working-directory: server
         run: npm run build
 
-      - name: Setup GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload build
-        uses: actions/upload-pages-artifact@v4
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.2
         with:
-          path: "./dist"
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            set -e
+            SITE="${{ secrets.VPS_SITE_PATH }}"
+            cd "$SITE"
+            git fetch origin main
+            git checkout main
+            git reset --hard origin/main
+            npm ci
+            npm run build
+            cd server
+            npm ci
+            npx prisma generate
+            npx prisma db push
+            npm run build
+            cd ..
+            if command -v pm2 >/dev/null 2>&1; then
+              pm2 restart mms-api --update-env || pm2 start server/dist/index.js --name mms-api --cwd "$SITE/server"
+              pm2 save
+            fi
+            curl -sf "http://127.0.0.1:3001/api/health" || true
