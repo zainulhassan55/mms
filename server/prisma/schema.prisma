@@ -106,6 +106,12 @@ enum DoiDepositStatus {
   failed
 }
 
+enum JournalRequestStatus {
+  pending
+  approved
+  rejected
+}
+
 model User {
   id                   String    @id @default(cuid())
   email                String    @unique
@@ -138,6 +144,8 @@ model User {
   copyeditAssignedBy  CopyeditAssignment[] @relation("CopyeditAssigner")
   discussionPosts     DiscussionPost[]
   roundsClosed        ReviewRound[]        @relation("RoundCloser")
+  journalRequests     JournalRequest[]     @relation("JournalRequester")
+  journalReviews      JournalRequest[]     @relation("JournalRequestReviewer")
 }
 
 model Journal {
@@ -155,6 +163,8 @@ model Journal {
   defaultReviewDays Int     @default(21)
   revisionDays     Int      @default(30)
   policiesMarkdown String?
+  /** False = hidden from public catalog (suspended). */
+  active           Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -163,6 +173,31 @@ model Journal {
   sections     JournalSection[]
   issues       Issue[]
   emailTemplates EmailTemplate[]
+  requests     JournalRequest[]
+}
+
+/** EasyChair-style request: user asks to host a journal; site admin approves. */
+model JournalRequest {
+  id            String               @id @default(cuid())
+  requesterId   String
+  requester     User                 @relation("JournalRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  proposedCode  String
+  proposedName  String
+  issn          String?
+  description   String?
+  contactEmail  String?
+  status        JournalRequestStatus @default(pending)
+  adminNote     String?
+  reviewedById  String?
+  reviewedBy    User?                @relation("JournalRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt    DateTime?
+  journalId     String?
+  journal       Journal?             @relation(fields: [journalId], references: [id], onDelete: SetNull)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([status])
+  @@index([requesterId])
 }
 
 model JournalMembership {

@@ -4,6 +4,7 @@ import { prisma } from '../db.js'
 import { requireAuth, type AuthedRequest } from '../auth/middleware.js'
 import { requireRole } from '../auth/requireRole.js'
 import { ensureMembership, isGlobalAdmin } from '../lib/journalAccess.js'
+import { createJournalWithDefaults } from '../lib/createJournal.js'
 import { param } from '../lib/params.js'
 
 const router = Router()
@@ -28,118 +29,35 @@ router.get('/', async (_req, res) => {
   }
 })
 
-/** Site admin creates a new journal (OJS-style journal setup). */
+/** Site admin creates a journal directly (still available alongside requests). */
 router.post(
   '/',
   requireAuth,
   requireRole('admin'),
   async (req: AuthedRequest, res) => {
     try {
-      const code = String(req.body?.code ?? '')
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9-]/g, '')
-      const name = String(req.body?.name ?? '').trim()
-      const issn = String(req.body?.issn ?? '').trim() || null
-      const description = String(req.body?.description ?? '').trim() || null
-      const contactEmail = String(req.body?.contactEmail ?? '').trim() || null
-
-      if (!code || code.length < 2) {
-        res.status(400).json({
-          ok: false,
-          error: 'Journal code is required (letters/numbers, e.g. jces).',
-        })
-        return
-      }
-      if (!name || name.length < 3) {
-        res.status(400).json({ ok: false, error: 'Journal name is required.' })
-        return
-      }
-
-      const existing = await prisma.journal.findFirst({
-        where: { OR: [{ code }, { name }] },
-      })
-      if (existing) {
-        res.status(409).json({
-          ok: false,
-          error: 'A journal with that code or name already exists.',
-        })
-        return
-      }
-
-      const journal = await prisma.journal.create({
-        data: {
-          code,
-          name,
-          issn,
-          description,
-          contactEmail,
-          reviewType: String(req.body?.reviewType ?? 'double_blind'),
-          defaultReviewDays: Number(req.body?.defaultReviewDays ?? 21),
-          revisionDays: Number(req.body?.revisionDays ?? 30),
-          policiesMarkdown: req.body?.policiesMarkdown
-            ? String(req.body.policiesMarkdown)
-            : '## Peer review\nDouble-blind review.\n\n## Ethics\nFollow COPE guidelines.',
-          sections: {
-            create: [
-              {
-                code: 'research',
-                title: 'Research',
-                description: 'Original research articles',
-                sortOrder: 1,
-              },
-              {
-                code: 'review',
-                title: 'Review',
-                description: 'Review and survey articles',
-                sortOrder: 2,
-              },
-            ],
-          },
-          emailTemplates: {
-            create: [
-              {
-                key: 'submission_received',
-                name: 'Submission received',
-                subject: 'Submission received: {{number}}',
-                bodyHtml:
-                  '<p>Dear {{authorName}},</p><p>We received your submission <strong>{{title}}</strong> ({{number}}) to {{journalName}}.</p>',
-              },
-              {
-                key: 'reviewer_invitation',
-                name: 'Reviewer invitation',
-                subject: 'Review invitation: {{number}}',
-                bodyHtml:
-                  '<p>Dear {{reviewerName}},</p><p>You are invited to review <strong>{{title}}</strong> for {{journalName}}. Deadline: {{deadline}}.</p>',
-              },
-              {
-                key: 'editorial_decision',
-                name: 'Editorial decision',
-                subject: 'Decision on {{number}}',
-                bodyHtml:
-                  '<p>Dear author,</p><p>A decision has been recorded for <strong>{{title}}</strong>: {{decision}}.</p><p>{{letter}}</p>',
-              },
-            ],
-          },
-          memberships: {
-            create: {
-              userId: req.user!.id,
-              role: 'journal_manager',
-            },
-          },
-        },
-        include: {
-          sections: true,
-          _count: { select: { manuscripts: true, memberships: true } },
-        },
+      const journal = await createJournalWithDefaults({
+        code: String(req.body?.code ?? ''),
+        name: String(req.body?.name ?? ''),
+        issn: String(req.body?.issn ?? '').trim() || null,
+        description: String(req.body?.description ?? '').trim() || null,
+        contactEmail: String(req.body?.contactEmail ?? '').trim() || null,
+        reviewType: String(req.body?.reviewType ?? 'double_blind'),
+        defaultReviewDays: Number(req.body?.defaultReviewDays ?? 21),
+        revisionDays: Number(req.body?.revisionDays ?? 30),
+        policiesMarkdown: req.body?.policiesMarkdown
+          ? String(req.body.policiesMarkdown)
+          : null,
+        managerUserId: req.user!.id,
       })
 
       res.status(201).json({ ok: true, journal })
     } catch (error) {
-      res.status(500).json({
-        ok: false,
-        error: error instanceof Error ? error.message : 'Failed to create journal',
-      })
+      const message =
+        error instanceof Error ? error.message : 'Failed to create journal'
+      const conflict =
+        message.includes('already exists') || message.includes('required')
+      res.status(conflict ? 400 : 500).json({ ok: false, error: message })
     }
   },
 )

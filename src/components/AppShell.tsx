@@ -24,6 +24,7 @@ const navByRole: Record<AppRole, NavItem[]> = {
   author: [
     { to: '/author/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { to: '/author/submissions', label: 'Submissions', icon: 'submissions' },
+    { to: '/request-journal', label: 'Request journal', icon: 'journals' },
     { to: '/notifications', label: 'Alerts', icon: 'alerts' },
     { to: '/profile', label: 'Profile', icon: 'profile' },
   ],
@@ -37,6 +38,7 @@ const navByRole: Record<AppRole, NavItem[]> = {
     { to: '/copyedit/queue', label: 'Copyedit', icon: 'active' },
     { to: '/production/queue', label: 'Production', icon: 'queue' },
     { to: '/manager/journals', label: 'Journals', icon: 'journals' },
+    { to: '/request-journal', label: 'Request', icon: 'journals' },
     { to: '/notifications', label: 'Alerts', icon: 'alerts' },
     { to: '/profile', label: 'Profile', icon: 'profile' },
   ],
@@ -44,6 +46,7 @@ const navByRole: Record<AppRole, NavItem[]> = {
     { to: '/reviewer/invitations', label: 'Invitations', icon: 'invitations' },
     { to: '/reviewer/active', label: 'Active', icon: 'active' },
     { to: '/reviewer/history', label: 'History', icon: 'history' },
+    { to: '/request-journal', label: 'Request journal', icon: 'journals' },
     { to: '/profile', label: 'Profile', icon: 'profile' },
   ],
   production: [
@@ -53,6 +56,7 @@ const navByRole: Record<AppRole, NavItem[]> = {
   ],
   admin: [
     { to: '/editor/queue', label: 'Editorial', icon: 'queue' },
+    { to: '/admin/journal-requests', label: 'Requests', icon: 'journals' },
     { to: '/admin/journals', label: 'Journals', icon: 'journals' },
     { to: '/manager/journals', label: 'Settings', icon: 'journals' },
     { to: '/admin/users', label: 'Users', icon: 'profile' },
@@ -64,6 +68,7 @@ const navByRole: Record<AppRole, NavItem[]> = {
   ],
   journal_manager: [
     { to: '/manager/journals', label: 'Settings', icon: 'journals' },
+    { to: '/request-journal', label: 'Request', icon: 'journals' },
     { to: '/editor/queue', label: 'Submissions', icon: 'queue' },
     { to: '/copyedit/queue', label: 'Copyedit', icon: 'active' },
     { to: '/production/queue', label: 'Production', icon: 'queue' },

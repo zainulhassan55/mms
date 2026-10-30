@@ -6,7 +6,9 @@ import { AppShell } from './components/AppShell'
 import { ToastProvider } from './components/ToastProvider'
 import { AdminAnalyticsPage } from './pages/admin/AdminAnalyticsPage'
 import { AdminJournalsPage } from './pages/admin/AdminJournalsPage'
+import { AdminJournalRequestsPage } from './pages/admin/AdminJournalRequestsPage'
 import { PortalSyncPage } from './pages/admin/PortalSyncPage'
+import { RequestJournalPage } from './pages/RequestJournalPage'
 import { AuthorDashboard } from './pages/AuthorDashboard'
 import { EditorManuscriptPage } from './pages/editor/EditorManuscriptPage'
 import { EditorQueuePage } from './pages/editor/EditorQueuePage'
@@ -81,6 +83,7 @@ export default function App() {
             <Route element={<ProtectedRoute />}>
               <Route element={<AppShell />}>
                 <Route path="/dashboard" element={<RoleHomeRedirect />} />
+                <Route path="/request-journal" element={<RequestJournalPage />} />
 
                 <Route element={<RoleRoute allow={['author']} />}>
                   <Route path="/author/dashboard" element={<AuthorDashboard />} />
@@ -164,6 +167,10 @@ export default function App() {
 
                 <Route element={<RoleRoute allow={['admin']} />}>
                   <Route path="/admin/journals" element={<AdminJournalsPage />} />
+                  <Route
+                    path="/admin/journal-requests"
+                    element={<AdminJournalRequestsPage />}
+                  />
                   <Route path="/admin/users" element={<AdminUsersPage />} />
                   <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
                   <Route path="/admin/portal-sync" element={<PortalSyncPage />} />

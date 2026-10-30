@@ -15,6 +15,7 @@ import invitationRoutes from './routes/invitations.js'
 import manuscriptRoutes from './routes/manuscripts.js'
 import adminRoutes from './routes/admin.js'
 import journalRoutes from './routes/journals.js'
+import journalRequestRoutes from './routes/journalRequests.js'
 import issueRoutes from './routes/issues.js'
 import publicRoutes from './routes/public.js'
 import workflowRoutes from './routes/workflow.js'
@@ -50,6 +51,7 @@ app.use('/api/manuscripts', manuscriptRoutes)
 app.use('/api/invitations', invitationRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/journals', journalRoutes)
+app.use('/api/journal-requests', journalRequestRoutes)
 app.use('/api/issues', issueRoutes)
 app.use('/api/public', publicRoutes)
 app.use('/api/workflow', workflowRoutes)

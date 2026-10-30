@@ -178,6 +178,93 @@ ${cta('Sign in', href)}`,
   )
 }
 
+export function notifyJournalRequestSubmitted(input: {
+  requestId: string
+  proposedName: string
+  proposedCode: string
+  requesterName: string
+  requesterEmail: string
+}) {
+  queue(
+    (async () => {
+      const href = appLink('/admin/journal-requests')
+      const admins = await prisma.user.findMany({
+        where: { role: 'admin' },
+        select: { name: true, email: true },
+      })
+      await Promise.all(
+        admins.map((admin) =>
+          sendMail({
+            to: admin.email,
+            category: 'workflow',
+            subject: `Journal request: ${input.proposedName}`,
+            text: `Dear ${admin.name},
+
+${input.requesterName} (${input.requesterEmail}) requested a journal workspace:
+
+Name: ${input.proposedName}
+Code: ${input.proposedCode}
+
+Review: ${href}`,
+            html: emailLayout(
+              'New journal request',
+              `<p>Dear ${escapeHtml(admin.name)},</p>
+<p><strong>${escapeHtml(input.requesterName)}</strong> (${escapeHtml(input.requesterEmail)}) requested a journal workspace.</p>
+<p><strong>Name:</strong> ${escapeHtml(input.proposedName)}<br/>
+<strong>Code:</strong> ${escapeHtml(input.proposedCode)}</p>
+${cta('Review requests', href)}`,
+            ),
+          }),
+        ),
+      )
+    })(),
+  )
+}
+
+export function notifyJournalRequestDecision(input: {
+  email: string
+  name: string
+  approved: boolean
+  journalName: string
+  journalCode: string
+  adminNote?: string | null
+}) {
+  queue(
+    (async () => {
+      const href = input.approved
+        ? appLink('/manager/journals')
+        : appLink('/request-journal')
+      const title = input.approved
+        ? 'Journal request approved'
+        : 'Journal request not approved'
+      const body = input.approved
+        ? `Your request for “${input.journalName}” (${input.journalCode}) was approved. You are now the journal manager.`
+        : `Your request for “${input.journalName}” (${input.journalCode}) was not approved.`
+      await sendMail({
+        to: input.email,
+        category: 'decision',
+        subject: title,
+        text: `Dear ${input.name},
+
+${body}
+${input.adminNote ? `\nNote: ${input.adminNote}\n` : ''}
+${href}`,
+        html: emailLayout(
+          title,
+          `<p>Dear ${escapeHtml(input.name)},</p>
+<p>${escapeHtml(body)}</p>
+${
+  input.adminNote
+    ? `<p><strong>Note:</strong> ${escapeHtml(input.adminNote)}</p>`
+    : ''
+}
+${cta(input.approved ? 'Open journal settings' : 'Submit another request', href)}`,
+        ),
+      })
+    })(),
+  )
+}
+
 export function notifySubmissionReceived(input: {
   manuscriptId: string
   number: string

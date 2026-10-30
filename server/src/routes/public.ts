@@ -8,6 +8,7 @@ const router = Router()
 router.get('/journals', async (_req, res) => {
   try {
     const journals = await prisma.journal.findMany({
+      where: { active: true },
       orderBy: { name: 'asc' },
       select: {
         code: true,
@@ -30,8 +31,8 @@ router.get('/journals', async (_req, res) => {
 
 router.get('/journals/:code', async (req, res) => {
   try {
-    const journal = await prisma.journal.findUnique({
-      where: { code: param(req.params.code) },
+    const journal = await prisma.journal.findFirst({
+      where: { code: param(req.params.code), active: true },
       select: {
         id: true,
         code: true,

@@ -86,12 +86,30 @@ export function PublicHomePage() {
             Peer-reviewed · Open access · Continuous publication
           </p>
           <h1 className="mt-3 max-w-3xl font-display text-[2.1rem] leading-[1.12] font-semibold tracking-tight sm:text-[2.75rem]">
-            Journals
+            Manuscript platform
           </h1>
           <p className="mt-4 max-w-2xl text-[0.98rem] leading-relaxed text-white/85">
-            Browse our journals, read current issues, and submit a manuscript
-            after signing in.
+            Browse journals hosted on this platform, read current issues, and
+            submit a manuscript after signing in. Editors can request a journal
+            workspace for their own title.
           </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            {isAuthenticated ? (
+              <Link
+                to="/request-journal"
+                className="inline-flex items-center rounded-[0.7rem] bg-white px-4 py-2.5 text-sm font-semibold text-signal-800 shadow-sm transition hover:bg-white/95"
+              >
+                Request a journal
+              </Link>
+            ) : (
+              <Link
+                to="/login"
+                className="inline-flex items-center rounded-[0.7rem] bg-white px-4 py-2.5 text-sm font-semibold text-signal-800 shadow-sm transition hover:bg-white/95"
+              >
+                Sign in to request a journal
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
