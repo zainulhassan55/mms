@@ -260,10 +260,14 @@ router.post(
         adminNote: updated.adminNote,
       })
 
+      const submitPath = `/submit/${journal.code}`
       res.json({
         ok: true,
         request: toClientRequest(updated),
         journal,
+        submitPath,
+        submitUrlHint:
+          'Give this path to the journal manager to place on their website. Authors who open it will register/log in, then submit to this journal.',
       })
     } catch (error) {
       res.status(500).json({

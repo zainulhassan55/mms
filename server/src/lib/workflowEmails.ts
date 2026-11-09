@@ -231,6 +231,7 @@ export function notifyJournalRequestDecision(input: {
 }) {
   queue(
     (async () => {
+      const submitLink = appLink(`/submit/${input.journalCode}`)
       const href = input.approved
         ? appLink('/manager/journals')
         : appLink('/request-journal')
@@ -240,6 +241,9 @@ export function notifyJournalRequestDecision(input: {
       const body = input.approved
         ? `Your request for “${input.journalName}” (${input.journalCode}) was approved. You are now the journal manager.`
         : `Your request for “${input.journalName}” (${input.journalCode}) was not approved.`
+      const submitBlock = input.approved
+        ? `\nAuthor submission link (place this on your journal website):\n${submitLink}\n`
+        : ''
       await sendMail({
         to: input.email,
         category: 'decision',
@@ -247,12 +251,18 @@ export function notifyJournalRequestDecision(input: {
         text: `Dear ${input.name},
 
 ${body}
-${input.adminNote ? `\nNote: ${input.adminNote}\n` : ''}
+${submitBlock}${input.adminNote ? `\nNote: ${input.adminNote}\n` : ''}
 ${href}`,
         html: emailLayout(
           title,
           `<p>Dear ${escapeHtml(input.name)},</p>
 <p>${escapeHtml(body)}</p>
+${
+  input.approved
+    ? `<p><strong>Author submission link</strong> — place this on your journal website so authors can register/log in and submit:</p>
+<p style="word-break:break-all;"><a href="${escapeHtml(submitLink)}">${escapeHtml(submitLink)}</a></p>`
+    : ''
+}
 ${
   input.adminNote
     ? `<p><strong>Note:</strong> ${escapeHtml(input.adminNote)}</p>`

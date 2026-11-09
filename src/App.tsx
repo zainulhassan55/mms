@@ -34,11 +34,15 @@ import { SubmissionDetailPage } from './pages/SubmissionDetailPage'
 import { JournalManagerPage } from './pages/manager/JournalManagerPage'
 import { CopyeditQueuePage } from './pages/copyedit/CopyeditQueuePage'
 import { AdminUsersPage } from './pages/admin/AdminUsersPage'
+import { PublicForEditorsPage } from './pages/public/PublicForEditorsPage'
 import { PublicHomePage } from './pages/public/PublicHomePage'
+import { PublicHowItWorksPage } from './pages/public/PublicHowItWorksPage'
 import {
   PublicArticlePage,
   PublicJournalPage,
 } from './pages/public/PublicJournalPage'
+import { PublicJournalsPage } from './pages/public/PublicJournalsPage'
+import { PublicSubmitGatewayPage } from './pages/public/PublicSubmitGatewayPage'
 
 function OfficeManuscriptRedirect() {
   const { id } = useParams()
@@ -52,6 +56,10 @@ export default function App() {
       <BrowserRouter>
         <Routes>
             <Route path="/" element={<PublicHomePage />} />
+            <Route path="/journals" element={<PublicJournalsPage />} />
+            <Route path="/how-it-works" element={<PublicHowItWorksPage />} />
+            <Route path="/for-editors" element={<PublicForEditorsPage />} />
+            <Route path="/submit/:code" element={<PublicSubmitGatewayPage />} />
             <Route
               path="/login"
               element={

@@ -105,22 +105,27 @@ router.get(
   async (req: AuthedRequest, res) => {
     try {
       const role = req.user!.role
-      const staffJournalIds =
-        role === 'admin'
-          ? null
-          : await getUserJournalIds(req.user!.id, [
-              'journal_manager',
-              'editor',
-              'section_editor',
-              'copyeditor',
-              'production',
-            ])
+      // Platform admin: no access to journal manuscript tenancy.
+      if (isGlobalAdmin(role)) {
+        res.json({ ok: true, manuscripts: [] })
+        return
+      }
+
+      const staffJournalIds = await getUserJournalIds(req.user!.id, [
+        'journal_manager',
+        'editor',
+        'section_editor',
+        'copyeditor',
+        'production',
+      ])
 
       let where: Prisma.ManuscriptWhereInput =
         role === 'author'
           ? { submittingAuthorId: req.user!.id }
-          : role === 'journal_manager' || isGlobalAdmin(role)
-            ? {} // all journal-scoped submissions (OJS JM / site admin queues)
+          : role === 'journal_manager'
+            ? staffJournalIds.length > 0
+              ? { journalId: { in: staffJournalIds } }
+              : { journalId: '__none__' }
             : role === 'editor' || role === 'office'
               ? {
                   OR: [

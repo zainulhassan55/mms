@@ -41,11 +41,16 @@ export function RegisterPage() {
   const navigate = useNavigate()
   const toast = useToast()
   const [searchParams] = useSearchParams()
+  const roleFromQuery = searchParams.get('role') as AppRole | null
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [affiliation, setAffiliation] = useState('')
   const [expertise, setExpertise] = useState('')
-  const [role, setRole] = useState<AppRole>('author')
+  const [role, setRole] = useState<AppRole>(
+    roleFromQuery && registerRoles.includes(roleFromQuery)
+      ? roleFromQuery
+      : 'author',
+  )
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [errors, setErrors] = useState<FieldErrors>({})

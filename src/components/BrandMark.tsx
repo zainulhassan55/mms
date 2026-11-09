@@ -31,7 +31,7 @@ export function BrandMark({
         className={`relative grid ${sizes.mark} shrink-0 place-items-center overflow-hidden rounded-[0.85rem] font-semibold tracking-tight ${
           isLight
             ? 'bg-white/15 ring-1 ring-white/25'
-            : 'bg-signal-600 shadow-[0_8px_20px_rgba(14,116,105,0.22)]'
+            : 'bg-signal-700 shadow-[0_8px_20px_rgba(15,41,66,0.22)]'
         }`}
         style={{ color: '#ffffff', minHeight: '2rem', minWidth: '2rem' }}
         aria-hidden
@@ -43,13 +43,13 @@ export function BrandMark({
         <div className="leading-tight">
           <p
             className={`font-display font-semibold tracking-tight ${sizes.word}`}
-            style={{ color: isLight ? '#ffffff' : '#14323c' }}
+            style={{ color: isLight ? '#ffffff' : '#1a2b3c' }}
           >
             MMS
           </p>
           <p
             className={`text-[0.7rem] font-medium tracking-[0.08em] uppercase`}
-            style={{ color: isLight ? 'rgba(255,255,255,0.7)' : '#3d6673' }}
+            style={{ color: isLight ? 'rgba(255,255,255,0.72)' : '#4b6178' }}
           >
             Manuscript Systems
           </p>

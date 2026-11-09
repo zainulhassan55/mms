@@ -308,9 +308,14 @@ export function JournalManagerPage() {
         actions={
           <div className="flex flex-wrap gap-2">
             {selected ? (
-              <Link to={`/j/${selected.code}`} className="btn btn-ghost">
-                Public site
-              </Link>
+              <>
+                <Link to={`/j/${selected.code}`} className="btn btn-ghost">
+                  Public site
+                </Link>
+                <Link to={`/submit/${selected.code}`} className="btn btn-ghost">
+                  Submit link
+                </Link>
+              </>
             ) : null}
             <Link to="/editor/queue" className="btn btn-ghost">
               Submissions
@@ -378,6 +383,33 @@ export function JournalManagerPage() {
       {tab === 'masthead' ? (
         <section className="surface space-y-4 p-5 sm:p-6">
           <h2 className="font-semibold text-ink-800">Masthead</h2>
+          {selected ? (
+            <div className="rounded-[var(--radius-md)] border border-signal-100 bg-signal-50 px-4 py-3 text-sm text-signal-900">
+              <p className="font-semibold">Author submission link</p>
+              <p className="mt-1 text-signal-800/90">
+                Place this URL on your journal website. Authors who open it will
+                register or log in, then submit to this journal.
+              </p>
+              <p className="mt-2 break-all font-mono text-xs">
+                {typeof window !== 'undefined'
+                  ? `${window.location.origin}/submit/${selected.code}`
+                  : `/submit/${selected.code}`}
+              </p>
+              <button
+                type="button"
+                className="btn btn-ghost mt-2"
+                onClick={() => {
+                  const url = `${window.location.origin}/submit/${selected.code}`
+                  void navigator.clipboard?.writeText(url).then(
+                    () => toast.success('Submit link copied.'),
+                    () => toast.error('Could not copy link.'),
+                  )
+                }}
+              >
+                Copy link
+              </button>
+            </div>
+          ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="field sm:col-span-2">
               <label>Journal title</label>

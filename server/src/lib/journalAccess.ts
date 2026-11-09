@@ -39,12 +39,19 @@ export async function userHasJournalRole(
   return Boolean(hit)
 }
 
-/** Scope manuscript list queries by journal membership (admins see all). */
+/**
+ * Scope manuscript list queries by journal membership.
+ * Site admin (platform) has NO access to journal papers/records — only
+ * journal managers and staff with memberships do.
+ */
 export async function journalScopeWhere(
   userId: string,
   role: AppRole,
 ): Promise<Prisma.ManuscriptWhereInput | undefined> {
-  if (isGlobalAdmin(role)) return undefined
+  // Platform admin: isolate from all journal manuscript tenancy.
+  if (isGlobalAdmin(role)) {
+    return { journalId: '__none__' }
+  }
   const journalIds = await getUserJournalIds(userId, STAFF_MEMBER_ROLES)
   if (journalIds.length === 0) {
     // Fall back: authors/reviewers without membership still see own work via other filters
@@ -74,8 +81,9 @@ const EDITORIAL_MEMBER_ROLES: JournalMemberRole[] = [
 ]
 
 /**
- * OJS-style editorial access: site admin, journal manager, or assigned editor.
- * Screening queue also allows unassigned editors/office on screening statuses.
+ * Editorial access for a manuscript: journal manager / assigned editor /
+ * journal staff membership. Platform site admin is NOT granted access
+ * (tenant isolation — journals own their papers).
  */
 export async function canManageEditorial(
   user: { id: string; role: AppRole },
@@ -86,7 +94,7 @@ export async function canManageEditorial(
   },
   opts?: { allowScreeningQueue?: boolean },
 ): Promise<boolean> {
-  if (isGlobalAdmin(user.role)) return true
+  if (isGlobalAdmin(user.role)) return false
 
   if (user.role === 'journal_manager') {
     return userHasJournalRole(user.id, manuscript.journalId, [

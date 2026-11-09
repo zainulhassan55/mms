@@ -29,79 +29,45 @@ router.get(
   requireRole('admin'),
   async (_req: AuthedRequest, res) => {
     try {
-      const [
-        manuscripts,
-        journals,
-        pendingInvites,
-        completedReviews,
-        portalSyncs,
-        recentActivity,
-      ] = await Promise.all([
-        prisma.manuscript.findMany({
-          select: {
-            status: true,
-            journal: { select: { id: true, name: true, code: true } },
-          },
-        }),
-        prisma.journal.findMany({ orderBy: { name: 'asc' } }),
-        prisma.reviewInvitation.count({ where: { status: 'sent' } }),
-        prisma.reviewReport.count(),
-        prisma.manuscript.count({
-          where: { status: 'published', portalSyncStatus: 'synced' },
-        }),
-        prisma.activityEvent.findMany({
-          include: { manuscript: { select: { number: true } } },
-          orderBy: { createdAt: 'desc' },
-          take: 8,
-        }),
-      ])
-
-      const total = manuscripts.length
-      const submitted = manuscripts.filter((m) => m.status !== 'draft').length
-      const underReview = manuscripts.filter((m) =>
-        ['under_review', 'revision_requested'].includes(m.status),
-      ).length
-      const accepted = manuscripts.filter((m) =>
-        [
-          'accepted',
-          'in_production',
-          'proof_sent',
-          'ready_for_publication',
-          'published',
-        ].includes(m.status),
-      ).length
-      const rejected = manuscripts.filter((m) => m.status === 'rejected').length
-      const published = manuscripts.filter((m) => m.status === 'published').length
-      const decided = accepted + rejected
-      const acceptanceRate = decided
-        ? Math.round((accepted / decided) * 100)
-        : 0
-
-      const byJournal = journals.map((journal) => ({
-        id: journal.id,
-        code: journal.code,
-        name: journal.name,
-        count: manuscripts.filter((m) => m.journal.id === journal.id).length,
-        published: manuscripts.filter(
-          (m) => m.journal.id === journal.id && m.status === 'published',
-        ).length,
-      }))
+      // Platform metrics only — site admin must not see journal papers/records.
+      const [journals, users, pendingRequests, approvedRequests] =
+        await Promise.all([
+          prisma.journal.findMany({
+            orderBy: { name: 'asc' },
+            select: { id: true, code: true, name: true, active: true },
+          }),
+          prisma.user.count(),
+          prisma.journalRequest.count({ where: { status: 'pending' } }),
+          prisma.journalRequest.count({ where: { status: 'approved' } }),
+        ])
 
       res.json({
         ok: true,
         analytics: {
-          total,
-          submitted,
-          underReview,
-          accepted,
-          rejected,
-          published,
-          acceptanceRate,
-          pendingInvites,
-          completedReviews,
-          portalSyncs,
-          byJournal,
-          recentActivity: recentActivity.map(toClientActivity),
+          total: 0,
+          submitted: 0,
+          underReview: 0,
+          accepted: 0,
+          rejected: 0,
+          published: 0,
+          acceptanceRate: 0,
+          pendingInvites: 0,
+          completedReviews: 0,
+          portalSyncs: 0,
+          platformUsers: users,
+          pendingJournalRequests: pendingRequests,
+          approvedJournalRequests: approvedRequests,
+          byJournal: journals.map((journal) => ({
+            id: journal.id,
+            code: journal.code,
+            name: journal.name,
+            active: journal.active,
+            count: null,
+            published: null,
+          })),
+          recentActivity: [],
+          isolationNote:
+            'Site admin cannot access journal manuscripts, reviews, or author records. Those belong to each journal’s staff.',
         },
       })
     } catch (error) {
@@ -118,8 +84,14 @@ router.get(
   '/portal-sync',
   requireAuth,
   requireRole('admin', 'production'),
-  async (_req: AuthedRequest, res) => {
+  async (req: AuthedRequest, res) => {
     try {
+      // Site admin: no manuscript tenancy access.
+      if (req.user!.role === 'admin') {
+        res.json({ ok: true, published: [], activities: [] })
+        return
+      }
+
       const [published, syncActivities] = await Promise.all([
         prisma.manuscript.findMany({
           where: { status: 'published' },

@@ -55,11 +55,29 @@ export function AdminJournalRequestsPage() {
   async function approve(id: string) {
     setBusyId(id)
     try {
-      await apiFetch(`/api/journal-requests/${id}/approve`, {
+      const data = await apiFetch<{
+        ok: boolean
+        journal?: { code: string; name: string }
+        submitPath?: string
+      }>(`/api/journal-requests/${id}/approve`, {
         method: 'POST',
         body: JSON.stringify({ adminNote: notes[id]?.trim() || null }),
       })
-      toast.success('Journal approved and created. Requester is journal manager.')
+      const path = data.submitPath ?? (data.journal ? `/submit/${data.journal.code}` : '')
+      const absolute = path ? `${window.location.origin}${path}` : ''
+      toast.success(
+        absolute
+          ? `Approved. Author submit link: ${absolute}`
+          : 'Journal approved. Requester is journal manager.',
+      )
+      if (absolute && navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(absolute)
+          toast.success('Submit link copied to clipboard.')
+        } catch {
+          /* ignore */
+        }
+      }
       await reload()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Approve failed')
@@ -202,6 +220,18 @@ export function AdminJournalRequestsPage() {
                           >
                             public page
                           </Link>
+                          {item.status === 'approved' ? (
+                            <>
+                              {' '}
+                              ·{' '}
+                              <Link
+                                to={`/submit/${item.journal.code}`}
+                                className="text-signal-700"
+                              >
+                                submit link
+                              </Link>
+                            </>
+                          ) : null}
                         </>
                       ) : null}
                     </span>

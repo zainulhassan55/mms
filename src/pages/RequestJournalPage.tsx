@@ -172,12 +172,20 @@ export function RequestJournalPage() {
                     {statusLabel[item.status] ?? item.status}
                   </p>
                   {item.status === 'approved' && item.journal ? (
-                    <Link
-                      to="/manager/journals"
-                      className="mt-1 inline-block text-sm font-semibold text-signal-700"
-                    >
-                      Open settings →
-                    </Link>
+                    <div className="mt-1 flex flex-col items-end gap-1">
+                      <Link
+                        to="/manager/journals"
+                        className="text-sm font-semibold text-signal-700"
+                      >
+                        Open settings →
+                      </Link>
+                      <Link
+                        to={`/submit/${item.journal.code}`}
+                        className="text-sm font-semibold text-signal-700"
+                      >
+                        Author submit link →
+                      </Link>
+                    </div>
                   ) : null}
                 </div>
               </li>

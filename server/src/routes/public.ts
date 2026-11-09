@@ -4,23 +4,14 @@ import { param } from '../lib/params.js'
 
 const router = Router()
 
-/** Public catalog — OJS-style multi-journal index. */
+/**
+ * Public platform counter only — does not expose openable journal catalog.
+ * Individual journals are reached via /submit/:code, not a public browse list.
+ */
 router.get('/journals', async (_req, res) => {
   try {
-    const journals = await prisma.journal.findMany({
-      where: { active: true },
-      orderBy: { name: 'asc' },
-      select: {
-        code: true,
-        name: true,
-        issn: true,
-        description: true,
-        coverImageUrl: true,
-        subjectTags: true,
-        reviewType: true,
-      },
-    })
-    res.json({ ok: true, journals })
+    const count = await prisma.journal.count({ where: { active: true } })
+    res.json({ ok: true, count, journals: [] })
   } catch (error) {
     res.status(500).json({
       ok: false,
